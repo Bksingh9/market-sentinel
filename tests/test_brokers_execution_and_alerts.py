@@ -129,7 +129,28 @@ class BrokersExecutionAndAlertsTest(unittest.TestCase):
         _, url, _, data, auth = http.calls[0]
         self.assertEqual(url, "https://api.twilio.com/2010-04-01/Accounts/AC123/Messages.json")
         self.assertEqual(data["Body"], "Risk gate blocked a scheduled order")
+        self.assertEqual(data["From"], "+10000000000")
+        self.assertEqual(data["To"], "+19999999999")
         self.assertEqual(auth, ("AC123", "auth"))
+
+    def test_twilio_alert_adapter_supports_messaging_service_and_status_callback(self):
+        http = RecordingHttpClient()
+        settings = Settings(
+            twilio_alerts_enabled=True,
+            twilio_account_sid="AC123",
+            twilio_auth_token="auth",
+            twilio_messaging_service_sid="MG123",
+            twilio_status_callback_url="https://example.test/twilio/status",
+            twilio_to="+19999999999",
+        )
+        adapter = TwilioAlertAdapter(settings, http_client=http)
+
+        adapter.send("Execution alert")
+
+        _, _, _, data, _ = http.calls[0]
+        self.assertNotIn("From", data)
+        self.assertEqual(data["MessagingServiceSid"], "MG123")
+        self.assertEqual(data["StatusCallback"], "https://example.test/twilio/status")
 
 
 if __name__ == "__main__":

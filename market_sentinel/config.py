@@ -41,6 +41,8 @@ class Settings:
     twilio_account_sid: str | None = None
     twilio_auth_token: str | None = None
     twilio_from: str | None = None
+    twilio_messaging_service_sid: str | None = None
+    twilio_status_callback_url: str | None = None
     twilio_to: str | None = None
 
 
@@ -84,5 +86,7 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
         twilio_account_sid=source.get("TWILIO_ACCOUNT_SID") or None,
         twilio_auth_token=source.get("TWILIO_AUTH_TOKEN") or None,
         twilio_from=source.get("TWILIO_FROM") or None,
+        twilio_messaging_service_sid=source.get("TWILIO_MESSAGING_SERVICE_SID") or None,
+        twilio_status_callback_url=source.get("TWILIO_STATUS_CALLBACK_URL") or None,
         twilio_to=source.get("TWILIO_TO") or None,
     )

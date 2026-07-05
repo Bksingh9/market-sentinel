@@ -18,26 +18,30 @@ class TwilioAlertAdapter:
     def send(self, message: str) -> dict[str, Any]:
         if not self.settings.twilio_alerts_enabled:
             return {"status": "disabled"}
-        missing = [
-            name
-            for name, value in {
-                "TWILIO_ACCOUNT_SID": self.settings.twilio_account_sid,
-                "TWILIO_AUTH_TOKEN": self.settings.twilio_auth_token,
-                "TWILIO_FROM": self.settings.twilio_from,
-                "TWILIO_TO": self.settings.twilio_to,
-            }.items()
-            if not value
-        ]
+        required = {
+            "TWILIO_ACCOUNT_SID": self.settings.twilio_account_sid,
+            "TWILIO_AUTH_TOKEN": self.settings.twilio_auth_token,
+            "TWILIO_TO": self.settings.twilio_to,
+        }
+        if not self.settings.twilio_messaging_service_sid:
+            required["TWILIO_FROM"] = self.settings.twilio_from
+        missing = [name for name, value in required.items() if not value]
         if missing:
             raise AlertReject(f"missing Twilio settings: {', '.join(missing)}")
         url = f"https://api.twilio.com/2010-04-01/Accounts/{self.settings.twilio_account_sid}/Messages.json"
+        data = {
+            "To": self.settings.twilio_to or "",
+            "Body": message,
+        }
+        if self.settings.twilio_messaging_service_sid:
+            data["MessagingServiceSid"] = self.settings.twilio_messaging_service_sid
+        else:
+            data["From"] = self.settings.twilio_from or ""
+        if self.settings.twilio_status_callback_url:
+            data["StatusCallback"] = self.settings.twilio_status_callback_url
         response = self.http_client.post_form(
             url,
-            data={
-                "From": self.settings.twilio_from or "",
-                "To": self.settings.twilio_to or "",
-                "Body": message,
-            },
+            data=data,
             auth=(self.settings.twilio_account_sid or "", self.settings.twilio_auth_token or ""),
         )
         if response.status_code >= 400:

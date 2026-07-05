@@ -57,6 +57,8 @@ class OperationsTest(unittest.TestCase):
 
         self.assertEqual(data["model"]["mode"], "advisory")
         self.assertEqual(data["scheduled_orders"][0]["status"], "pending")
+        self.assertFalse(data["status"]["apis"]["alpaca_credentials_present"])
+        self.assertFalse(data["status"]["apis"]["twilio_messaging_service_configured"])
 
     def test_train_model_command_saves_and_activates_model(self):
         with tempfile.TemporaryDirectory() as temp_dir:

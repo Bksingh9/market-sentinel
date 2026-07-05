@@ -20,7 +20,7 @@ Real API wiring is present but disabled by default.
 - Alpaca paper/live HTTP order requests require `ALPACA_REAL_API_ENABLED=true`, `ALPACA_KEY_ID`, and `ALPACA_SECRET_KEY`.
 - Alpaca live-small also requires `ALPACA_LIVE_TRADING_ENABLED=true`, `ALPACA_ACCOUNT_ID`, mode `live-small`, and passing risk/compliance gates.
 - Groww live-small SDK order requests require `GROWW_REAL_API_ENABLED=true`, `GROWW_ACCESS_TOKEN`, `GROWW_ALGO_ID`, India live/compliance flags, mode `live-small`, and passing risk/compliance gates.
-- Twilio alerts require `TWILIO_ALERTS_ENABLED=true`, account credentials, sender, and recipient.
+- Twilio alerts require `TWILIO_ALERTS_ENABLED=true`, account credentials, recipient, and either `TWILIO_MESSAGING_SERVICE_SID` for production sender pools or `TWILIO_FROM` for direct SMS. Set `TWILIO_STATUS_CALLBACK_URL` to receive delivery events.
 
 ## Machine Learning
 

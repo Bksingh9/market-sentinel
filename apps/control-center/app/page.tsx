@@ -12,8 +12,14 @@ type DashboardData = {
     live_small_blocked_by_default: boolean;
     apis: {
       alpaca_real_api_enabled: boolean;
+      alpaca_credentials_present: boolean;
       groww_real_api_enabled: boolean;
+      groww_credentials_present: boolean;
       twilio_alerts_enabled: boolean;
+      twilio_credentials_present: boolean;
+      twilio_sender_configured: boolean;
+      twilio_messaging_service_configured: boolean;
+      twilio_status_callback_configured: boolean;
     };
     ruflo: {
       role: string;
@@ -111,6 +117,18 @@ export default function Home() {
             <Metric label="Alpaca" value={data.status.apis.alpaca_real_api_enabled ? "enabled" : "off"} />
             <Metric label="Groww" value={data.status.apis.groww_real_api_enabled ? "enabled" : "off"} />
             <Metric label="Twilio" value={data.status.apis.twilio_alerts_enabled ? "enabled" : "off"} />
+            <Metric label="Alpaca keys" value={data.status.apis.alpaca_credentials_present ? "present" : "missing"} />
+            <Metric label="Groww token" value={data.status.apis.groww_credentials_present ? "present" : "missing"} />
+            <Metric label="Twilio auth" value={data.status.apis.twilio_credentials_present ? "present" : "missing"} />
+            <Metric label="Twilio sender" value={data.status.apis.twilio_sender_configured ? "configured" : "missing"} />
+            <Metric
+              label="Twilio service"
+              value={data.status.apis.twilio_messaging_service_configured ? "configured" : "direct"}
+            />
+            <Metric
+              label="Twilio callback"
+              value={data.status.apis.twilio_status_callback_configured ? "configured" : "missing"}
+            />
           </div>
           <p className="mt-4 text-sm leading-6 text-slate-600">
             Real APIs are wired behind environment flags and credentials. Live orders remain blocked until engine gates pass.

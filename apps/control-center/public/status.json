@@ -31,9 +31,15 @@
   "status": {
     "account_id": "paper-local",
     "apis": {
+      "alpaca_credentials_present": false,
       "alpaca_real_api_enabled": false,
+      "groww_credentials_present": false,
       "groww_real_api_enabled": false,
-      "twilio_alerts_enabled": false
+      "twilio_alerts_enabled": false,
+      "twilio_credentials_present": false,
+      "twilio_messaging_service_configured": false,
+      "twilio_sender_configured": false,
+      "twilio_status_callback_configured": false
     },
     "live_small_blocked_by_default": true,
     "mode": "disabled",

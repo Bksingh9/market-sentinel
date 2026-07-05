@@ -20,8 +20,14 @@ def _status() -> dict[str, object]:
         "live_small_blocked_by_default": settings.mode.value != "live-small",
         "apis": {
             "alpaca_real_api_enabled": settings.alpaca_real_api_enabled,
+            "alpaca_credentials_present": bool(settings.alpaca_key_id and settings.alpaca_secret_key),
             "groww_real_api_enabled": settings.groww_real_api_enabled,
+            "groww_credentials_present": bool(settings.groww_access_token and settings.groww_algo_id),
             "twilio_alerts_enabled": settings.twilio_alerts_enabled,
+            "twilio_credentials_present": bool(settings.twilio_account_sid and settings.twilio_auth_token),
+            "twilio_sender_configured": bool(settings.twilio_messaging_service_sid or settings.twilio_from),
+            "twilio_messaging_service_configured": bool(settings.twilio_messaging_service_sid),
+            "twilio_status_callback_configured": bool(settings.twilio_status_callback_url),
         },
         "ruflo": RUFLOAgent().checklist_status(),
     }

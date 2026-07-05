@@ -25,6 +25,22 @@ class ConfigAndModelsTest(unittest.TestCase):
         self.assertEqual(settings.max_positions_per_market, 3)
         self.assertEqual(settings.max_positions_total, 6)
 
+    def test_twilio_production_fields_load_from_environment(self):
+        settings = load_settings(
+            {
+                "TWILIO_ALERTS_ENABLED": "true",
+                "TWILIO_ACCOUNT_SID": "AC123",
+                "TWILIO_AUTH_TOKEN": "token",
+                "TWILIO_MESSAGING_SERVICE_SID": "MG123",
+                "TWILIO_STATUS_CALLBACK_URL": "https://example.test/twilio/status",
+                "TWILIO_TO": "+19999999999",
+            }
+        )
+
+        self.assertTrue(settings.twilio_alerts_enabled)
+        self.assertEqual(settings.twilio_messaging_service_sid, "MG123")
+        self.assertEqual(settings.twilio_status_callback_url, "https://example.test/twilio/status")
+
     def test_order_intent_requires_protection(self):
         intent = OrderIntent(
             symbol="SPY",
