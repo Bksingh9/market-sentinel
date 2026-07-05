@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-sentinel"
+version = "0.1.0"
+description = "Safe-by-default market automation scaffold for research, paper trading, and gated broker execution."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Codex" }]
+
+[project.scripts]
+market-sentinel = "market_sentinel.cli:main"
