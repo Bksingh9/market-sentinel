@@ -9,7 +9,7 @@ from market_sentinel.analysis import AnalysisAgent
 from market_sentinel.config import load_settings
 from market_sentinel.model_store import ModelStore
 from market_sentinel.model_training import TrainingExample, train_linear_model
-from market_sentinel.ruflo import RUFLOAgent
+from market_sentinel.ruflo import RUFLOAgent, live_preflight_report
 
 
 MODEL_PROMOTION_THRESHOLD = Decimal("0.9000")
@@ -32,6 +32,7 @@ def _status() -> dict[str, object]:
             "twilio_messaging_service_configured": bool(settings.twilio_messaging_service_sid),
             "twilio_status_callback_configured": bool(settings.twilio_status_callback_url),
         },
+        "live_preflight": live_preflight_report(settings),
         "ruflo": RUFLOAgent().checklist_status(),
     }
 
@@ -136,6 +137,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="market-sentinel")
     subcommands = parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("status")
+    subcommands.add_parser("live-preflight")
+    subcommands.add_parser("ruflo-run-once")
     train_parser = subcommands.add_parser("train-model")
     train_parser.add_argument("--model-dir", default="data/models")
     export_parser = subcommands.add_parser("export-dashboard")
@@ -145,6 +148,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "status":
         print(json.dumps(_status(), indent=2, sort_keys=True))
+        return 0
+    if args.command == "live-preflight":
+        print(json.dumps(live_preflight_report(load_settings()), indent=2, sort_keys=True))
+        return 0
+    if args.command == "ruflo-run-once":
+        print(json.dumps(RUFLOAgent().supervised_run_once(load_settings()), indent=2, sort_keys=True))
         return 0
     if args.command == "train-model":
         version = _train_model(Path(args.model_dir))

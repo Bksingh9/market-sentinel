@@ -44,6 +44,56 @@
       "twilio_sender_configured": false,
       "twilio_status_callback_configured": false
     },
+    "live_preflight": {
+      "account_allowlisted": true,
+      "account_id": "paper-local",
+      "alerts": {
+        "twilio": {
+          "enabled": false,
+          "missing": [
+            "TWILIO_ALERTS_ENABLED",
+            "TWILIO_ACCOUNT_SID",
+            "TWILIO_AUTH_TOKEN",
+            "TWILIO_TO",
+            "TWILIO_FROM or TWILIO_MESSAGING_SERVICE_SID"
+          ],
+          "ready": false
+        }
+      },
+      "apis": {
+        "alpaca": {
+          "enabled": false,
+          "missing": [
+            "MARKET_SENTINEL_MODE=live-small",
+            "ALPACA_LIVE_TRADING_ENABLED",
+            "ALPACA_REAL_API_ENABLED",
+            "ALPACA_ACCOUNT_ID",
+            "ALPACA_KEY_ID",
+            "ALPACA_SECRET_KEY"
+          ],
+          "ready": false
+        },
+        "groww": {
+          "enabled": false,
+          "missing": [
+            "MARKET_SENTINEL_MODE=live-small",
+            "INDIA_LIVE_TRADING_ENABLED",
+            "INDIA_ALGO_COMPLIANCE_VERIFIED",
+            "GROWW_REAL_API_ENABLED",
+            "GROWW_ACCESS_TOKEN",
+            "GROWW_ALGO_ID"
+          ],
+          "ready": false
+        }
+      },
+      "mode": "disabled",
+      "ready_to_trade": false,
+      "ruflo": {
+        "can_place_orders": false,
+        "order_boundary": "ExecutionAgent",
+        "role": "supervised-coordinator"
+      }
+    },
     "live_small_blocked_by_default": true,
     "mode": "disabled",
     "ruflo": {
@@ -55,7 +105,7 @@
         "Twilio alert delivery and consent setup",
         "four-week paper gate"
       ],
-      "role": "coordination-only"
+      "role": "supervised-coordinator"
     }
   },
   "validation_gates": [

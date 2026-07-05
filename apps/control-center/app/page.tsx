@@ -21,6 +21,22 @@ type DashboardData = {
       twilio_messaging_service_configured: boolean;
       twilio_status_callback_configured: boolean;
     };
+    live_preflight: {
+      ready_to_trade: boolean;
+      apis: {
+        alpaca: {
+          ready: boolean;
+        };
+        groww: {
+          ready: boolean;
+        };
+      };
+      alerts: {
+        twilio: {
+          ready: boolean;
+        };
+      };
+    };
     ruflo: {
       role: string;
       can_place_orders: boolean;
@@ -120,6 +136,10 @@ export default function Home() {
             <Metric label="Alpaca" value={data.status.apis.alpaca_real_api_enabled ? "enabled" : "off"} />
             <Metric label="Groww" value={data.status.apis.groww_real_api_enabled ? "enabled" : "off"} />
             <Metric label="Twilio" value={data.status.apis.twilio_alerts_enabled ? "enabled" : "off"} />
+            <Metric label="Live preflight" value={data.status.live_preflight.ready_to_trade ? "ready" : "blocked"} />
+            <Metric label="Alpaca live" value={data.status.live_preflight.apis.alpaca.ready ? "ready" : "blocked"} />
+            <Metric label="Groww live" value={data.status.live_preflight.apis.groww.ready ? "ready" : "blocked"} />
+            <Metric label="Twilio alerts" value={data.status.live_preflight.alerts.twilio.ready ? "ready" : "blocked"} />
             <Metric label="Alpaca keys" value={data.status.apis.alpaca_credentials_present ? "present" : "missing"} />
             <Metric label="Groww token" value={data.status.apis.groww_credentials_present ? "present" : "missing"} />
             <Metric label="Twilio auth" value={data.status.apis.twilio_credentials_present ? "present" : "missing"} />

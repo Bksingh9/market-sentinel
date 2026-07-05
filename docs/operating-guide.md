@@ -9,6 +9,8 @@ The default mode is `disabled`. Use `paper` for mock or broker paper workflows. 
 ```powershell
 & 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest discover -s tests -v
 & 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m market_sentinel.cli status
+& 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m market_sentinel.cli live-preflight
+& 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m market_sentinel.cli ruflo-run-once
 & 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m market_sentinel.cli train-model --model-dir data\models
 & 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m market_sentinel.cli export-dashboard --path apps\control-center\public\status.json --model-dir data\models
 ```
@@ -37,3 +39,7 @@ Set `MARKET_SENTINEL_MODE=emergency` to block new orders. Future flatten-only be
 ## Live-Small Boundary
 
 Live-small trading is unavailable until broker credentials, account allowlists, explicit live flags, compliance verification, risk gates, and audit paths are configured.
+
+## RUFLO Runtime Boundary
+
+RUFLO can retrieve sanitized live API readiness, coordinate gate checks, and run a paper-only supervised execution check. RUFLO cannot make discretionary trading calls, book profit autonomously, reveal secrets, or bypass `ExecutionAgent`, risk, compliance, broker, and runtime gates.
