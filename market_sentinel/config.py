@@ -29,9 +29,19 @@ class Settings:
     india_live_trading_enabled: bool = False
     india_algo_compliance_verified: bool = False
     groww_algo_id: str | None = None
+    groww_access_token: str | None = None
+    groww_real_api_enabled: bool = False
     alpaca_paper_trading_enabled: bool = True
     alpaca_live_trading_enabled: bool = False
     alpaca_account_id: str | None = None
+    alpaca_key_id: str | None = None
+    alpaca_secret_key: str | None = None
+    alpaca_real_api_enabled: bool = False
+    twilio_alerts_enabled: bool = False
+    twilio_account_sid: str | None = None
+    twilio_auth_token: str | None = None
+    twilio_from: str | None = None
+    twilio_to: str | None = None
 
 
 def _parse_mode(value: str | None) -> RuntimeMode:
@@ -62,7 +72,17 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
         india_live_trading_enabled=_parse_bool(source.get("INDIA_LIVE_TRADING_ENABLED")),
         india_algo_compliance_verified=_parse_bool(source.get("INDIA_ALGO_COMPLIANCE_VERIFIED")),
         groww_algo_id=source.get("GROWW_ALGO_ID") or None,
+        groww_access_token=source.get("GROWW_ACCESS_TOKEN") or None,
+        groww_real_api_enabled=_parse_bool(source.get("GROWW_REAL_API_ENABLED")),
         alpaca_paper_trading_enabled=_parse_bool(source.get("ALPACA_PAPER_TRADING_ENABLED"), default=True),
         alpaca_live_trading_enabled=_parse_bool(source.get("ALPACA_LIVE_TRADING_ENABLED")),
         alpaca_account_id=source.get("ALPACA_ACCOUNT_ID") or None,
+        alpaca_key_id=source.get("ALPACA_KEY_ID") or None,
+        alpaca_secret_key=source.get("ALPACA_SECRET_KEY") or None,
+        alpaca_real_api_enabled=_parse_bool(source.get("ALPACA_REAL_API_ENABLED")),
+        twilio_alerts_enabled=_parse_bool(source.get("TWILIO_ALERTS_ENABLED")),
+        twilio_account_sid=source.get("TWILIO_ACCOUNT_SID") or None,
+        twilio_auth_token=source.get("TWILIO_AUTH_TOKEN") or None,
+        twilio_from=source.get("TWILIO_FROM") or None,
+        twilio_to=source.get("TWILIO_TO") or None,
     )
