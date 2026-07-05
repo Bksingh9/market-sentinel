@@ -1,5 +1,7 @@
 import json
 import io
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -66,6 +68,17 @@ class OperationsTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertGreaterEqual(model.training_rows, 3)
         self.assertIn("momentum", model.feature_names)
+
+    def test_cli_module_invocation_runs_status_command(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "market_sentinel.cli", "status"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('"mode"', result.stdout)
 
 
 if __name__ == "__main__":

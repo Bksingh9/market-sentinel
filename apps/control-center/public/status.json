@@ -1,0 +1,70 @@
+{
+  "equity_summary": {
+    "end": "100100",
+    "max_drawdown": "0.0040",
+    "return": "0.0010",
+    "start": "100000"
+  },
+  "model": {
+    "accuracy": "0.5000",
+    "active_version": "model-20260705143313528817",
+    "can_place_orders": false,
+    "feature_set": [
+      "average_volume",
+      "momentum"
+    ],
+    "last_trained_at": "2026-07-05T14:33:13.528817+00:00",
+    "mode": "advisory"
+  },
+  "scheduled_orders": [
+    {
+      "eligible_at": "2026-07-06T13:30:00+00:00",
+      "expires_at": "2026-07-06T20:00:00+00:00",
+      "gate": "must pass fresh risk and compliance checks",
+      "id": "paper-open-check",
+      "market": "US",
+      "model_version": "model-20260705143313528817",
+      "status": "pending",
+      "symbol": "SPY"
+    }
+  ],
+  "status": {
+    "account_id": "paper-local",
+    "apis": {
+      "alpaca_real_api_enabled": false,
+      "groww_real_api_enabled": false,
+      "twilio_alerts_enabled": false
+    },
+    "live_small_blocked_by_default": true,
+    "mode": "disabled",
+    "ruflo": {
+      "can_place_orders": false,
+      "checks": [
+        "dependency license review",
+        "Groww permissions and India algo obligations",
+        "Alpaca account and endpoint separation",
+        "Twilio alert delivery and consent setup",
+        "four-week paper gate"
+      ],
+      "role": "coordination-only"
+    }
+  },
+  "validation_gates": [
+    {
+      "name": "Unit tests",
+      "state": "ready"
+    },
+    {
+      "name": "Model training",
+      "state": "ready"
+    },
+    {
+      "name": "Four-week paper gate",
+      "state": "not-started"
+    },
+    {
+      "name": "Live-small compliance",
+      "state": "blocked"
+    }
+  ]
+}

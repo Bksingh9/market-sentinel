@@ -117,3 +117,7 @@ def main(argv: list[str] | None = None) -> int:
         _export_dashboard(Path(args.path), model_dir=Path(args.model_dir))
         return 0
     return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

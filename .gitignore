@@ -9,3 +9,7 @@ dist/
 .next/
 .env
 apps/control-center/.env.local
+*.log
+.vinext/
+apps/control-center/pnpm-lock.yaml
+apps/control-center/pnpm-workspace.yaml
