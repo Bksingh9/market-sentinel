@@ -13,6 +13,8 @@ The build is based on the referenced file:
 - Provide a working local engine for market data validation, feature computation, strategy signals, risk checks, compliance gates, execution routing, portfolio accounting, and analysis.
 - Provide a Sites control center that shows runtime mode, broker readiness, risk status, validation-gate progress, audit events, paper-trading state, and emergency status.
 - Make mock or paper operation useful immediately.
+- Include machine-learning training, model update, model versioning, and advisory inference from historical or paper-trading data.
+- Include scheduled order intents so candidate orders can be queued for future evaluation without bypassing risk, compliance, or execution gates.
 - Keep live-small operation blocked until broker credentials, account allowlists, explicit live flags, risk limits, and compliance checks are configured.
 - Keep Groww India and Alpaca US broker boundaries isolated behind adapters.
 - Make command-line simulation and backtesting incapable of live order submission, even if live broker credentials exist.
@@ -29,6 +31,7 @@ The build is based on the referenced file:
 - Do not build a mobile app in the first pass.
 - Do not add LangGraph or external agent frameworks before the RUFLO/LangGraph adoption checklist item is reviewed.
 - Do not make the Sites dashboard place live orders directly.
+- Do not let model predictions or scheduled orders bypass the `RiskAgent`, `ComplianceGuard`, or `ExecutionAgent`.
 
 ## Project Shape
 
@@ -50,7 +53,10 @@ The Python engine should be split into focused modules:
 - `market_data`: `MarketDataAgent` that rejects stale, malformed, or impossible quotes.
 - `features`: `FeatureStore` with leakage-safe rolling features shared by backtest and paper simulation.
 - `prediction`: `MLPredictionAgent` as advisory-only baseline scoring. It can filter or rank signals but cannot create order authority.
+- `training`: trainable baseline ML model creation from labeled historical or paper-trading examples.
+- `model_store`: versioned model artifact persistence and activation metadata.
 - `strategy`: `StrategyAgent` plugin host for simple rule-based strategies.
+- `scheduler`: scheduled order intents that become eligible at a future time and then re-enter the normal risk/compliance/execution path.
 - `risk`: `RiskAgent` for position sizing, stop-loss and take-profit requirements, drawdown caps, max position caps, and disallowed instrument checks.
 - `compliance`: `ComplianceGuard` for account allowlists, mode gates, broker-session freshness, market hours, broker rate budgets, and India live-trading checks.
 - `execution`: `ExecutionAgent`, the only component allowed to call broker `place_order`.
@@ -93,6 +99,31 @@ Alpaca support starts with mock and paper paths. The adapter should keep paper a
 
 Backtest and simulation commands must use simulator broker interfaces only. These commands must not instantiate real broker adapters that can submit live HTTP orders. Tests should prove this by injecting a broker that fails the test if live `place_order` is touched.
 
+## Machine Learning Lifecycle
+
+The first implementation should include real machine-learning plumbing while staying dependency-light:
+
+- train a baseline linear scoring model from leakage-safe features and labeled outcomes;
+- save model artifacts as versioned JSON files with feature names, weights, bias, training window, metrics, and creation timestamp;
+- load the active model for advisory inference;
+- update the active model only after validation metrics and audit logging;
+- expose model version, last trained timestamp, feature set, and validation metrics in CLI output and the Sites control center.
+
+The ML model can rank, filter, or annotate strategy signals. It cannot independently place orders, override a block, change runtime mode, or mark live-small trading as compliant. Backtest and paper performance reports should show model metrics next to drawdown and rejected-order data so the UI does not overstate model quality.
+
+## Scheduled Order Intents
+
+Scheduled orders should be represented as scheduled order intents, not broker-native live orders in the first pass. A scheduled intent includes:
+
+- order intent;
+- scheduled eligibility time;
+- expiration time;
+- reason or strategy source;
+- created model version when ML influenced the schedule;
+- status such as `pending`, `eligible`, `expired`, `blocked`, `submitted`, or `cancelled`.
+
+When a scheduled intent becomes eligible, it must be re-evaluated against fresh market data, risk limits, compliance gates, account allowlists, runtime mode, and broker readiness. If any gate blocks the intent, the scheduler records the block reason and does not call the broker.
+
 ## Risk Defaults
 
 The first implementation should encode these defaults:
@@ -131,6 +162,8 @@ The control center should be an operational dashboard, not a marketing page. The
 
 - current mode and emergency status
 - broker readiness for Groww and Alpaca
+- active ML model version, last trained timestamp, and validation metrics
+- scheduled order intents and their current gate status
 - risk budget and drawdown status
 - validation gates
 - latest audit events
@@ -172,6 +205,8 @@ Use test-driven development for production behavior:
 - config and mode parsing tests
 - quote validation tests
 - leakage-safe feature tests
+- model training, model save/load, model update, and advisory inference tests
+- scheduled order tests for pending, eligible, expired, and blocked states
 - strategy signal tests
 - risk sizing and block-reason tests
 - compliance gate tests for disabled, backtest, paper, live-small, and emergency modes
@@ -190,6 +225,8 @@ The first software milestone is complete only when:
 - unit tests pass
 - backtest uses leakage-safe features and realistic fills/costs
 - paper simulation can run without live credentials
+- model training and update commands produce versioned artifacts and audit events
+- scheduled order intents cannot bypass risk, compliance, or execution gates
 - daily reconciliation and audit log paths exist
 - P0 alert and emergency drill hooks exist
 - live-small remains blocked without explicit compliance settings

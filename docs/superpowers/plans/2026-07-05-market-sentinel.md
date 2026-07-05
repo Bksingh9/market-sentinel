@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a safe-by-default Market Sentinel scaffold with a tested Python trading engine and a Sites control center for status, risk, compliance, audit, and validation gates.
+**Goal:** Build a safe-by-default Market Sentinel scaffold with a tested Python trading engine, advisory machine-learning training/update flow, scheduled order intents, and a Sites control center for status, risk, compliance, audit, model, schedule, and validation gates.
 
-**Architecture:** The core trading logic lives in a dependency-light Python package with explicit models, agents, broker boundaries, and CLI commands. The Sites control center reads generated status JSON and presents operational state without broker secrets or direct live-order controls. Live-small trading remains blocked unless environment gates, account allowlists, risk checks, and compliance checks all pass.
+**Architecture:** The core trading logic lives in a dependency-light Python package with explicit models, trainable advisory ML artifacts, scheduled order intents, agents, broker boundaries, and CLI commands. The Sites control center reads generated status JSON and presents operational state without broker secrets or direct live-order controls. Live-small trading remains blocked unless environment gates, account allowlists, risk checks, and compliance checks all pass, and neither ML predictions nor scheduled intents can bypass those gates.
 
 **Tech Stack:** Python 3 standard library, `unittest`, React 19, vinext, Sites, local Git, optional CodeRabbit CLI review after a meaningful diff exists.
 
@@ -36,7 +36,10 @@ Python tests should run without package downloads:
 - `market_sentinel/market_data.py`: quote validation.
 - `market_sentinel/features.py`: leakage-safe rolling features.
 - `market_sentinel/prediction.py`: advisory-only baseline scoring.
+- `market_sentinel/model_training.py`: dependency-light model training and metrics.
+- `market_sentinel/model_store.py`: versioned model artifact persistence and active-model pointer.
 - `market_sentinel/strategy.py`: rule-based signal generation.
+- `market_sentinel/scheduler.py`: scheduled order intents and due/expired state handling.
 - `market_sentinel/risk.py`: sizing, stop/take-profit enforcement, drawdown and position caps.
 - `market_sentinel/compliance.py`: mode, account, market-hours, live-small, and India algo gates.
 - `market_sentinel/brokers.py`: mock, Groww, and Alpaca broker boundaries.
@@ -719,7 +722,354 @@ Expected: commit succeeds.
 
 ---
 
-### Task 4: Risk And Compliance Gates
+### Task 4: ML Training, Model Updates, And Scheduled Intents
+
+**Files:**
+- Create: `market_sentinel/model_training.py`
+- Create: `market_sentinel/model_store.py`
+- Create: `market_sentinel/scheduler.py`
+- Test: `tests/test_ml_training_and_scheduling.py`
+
+- [ ] **Step 1: Write failing ML and scheduling tests**
+
+Create `tests/test_ml_training_and_scheduling.py`:
+
+```python
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from pathlib import Path
+
+from market_sentinel.model_store import ModelStore
+from market_sentinel.model_training import TrainingExample, train_linear_model
+from market_sentinel.models import InstrumentType, OrderIntent, Side
+from market_sentinel.scheduler import ScheduledOrderBook, ScheduledOrderIntent, ScheduledOrderStatus
+
+
+def protected_intent():
+    return OrderIntent(
+        symbol="SPY",
+        market="US",
+        instrument_type=InstrumentType.ETF,
+        side=Side.BUY,
+        quantity=Decimal("1"),
+        limit_price=Decimal("500"),
+        stop_loss=Decimal("490"),
+        take_profit=Decimal("515"),
+        strategy_id="momentum-long",
+    )
+
+
+class MLTrainingAndSchedulingTest(unittest.TestCase):
+    def test_training_produces_model_that_scores_positive_example(self):
+        examples = [
+            TrainingExample({"momentum": Decimal("0.04"), "average_volume": Decimal("1000")}, 1),
+            TrainingExample({"momentum": Decimal("-0.03"), "average_volume": Decimal("900")}, 0),
+            TrainingExample({"momentum": Decimal("0.02"), "average_volume": Decimal("1100")}, 1),
+        ]
+
+        model = train_linear_model(examples, epochs=12)
+
+        self.assertEqual(model.training_rows, 3)
+        self.assertIn("momentum", model.feature_names)
+        self.assertGreater(model.predict_score({"momentum": Decimal("0.04"), "average_volume": Decimal("1000")}), Decimal("0.5"))
+
+    def test_model_store_round_trips_active_model(self):
+        model = train_linear_model([
+            TrainingExample({"momentum": Decimal("0.04")}, 1),
+            TrainingExample({"momentum": Decimal("-0.03")}, 0),
+        ])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = ModelStore(Path(temp_dir))
+            store.save(model)
+            store.activate(model.version)
+            loaded = store.load_active()
+
+        self.assertEqual(loaded.version, model.version)
+        self.assertEqual(loaded.feature_names, model.feature_names)
+
+    def test_scheduler_returns_only_eligible_unexpired_intents(self):
+        now = datetime(2026, 7, 5, 10, 0, tzinfo=timezone.utc)
+        book = ScheduledOrderBook()
+        future = ScheduledOrderIntent(
+            id="future",
+            intent=protected_intent(),
+            eligible_at=now + timedelta(minutes=5),
+            expires_at=now + timedelta(minutes=30),
+            reason="wait for open",
+        )
+        due = ScheduledOrderIntent(
+            id="due",
+            intent=protected_intent(),
+            eligible_at=now - timedelta(minutes=1),
+            expires_at=now + timedelta(minutes=30),
+            reason="scheduled model signal",
+            model_version="model-1",
+        )
+        expired = ScheduledOrderIntent(
+            id="expired",
+            intent=protected_intent(),
+            eligible_at=now - timedelta(minutes=30),
+            expires_at=now - timedelta(minutes=1),
+            reason="old signal",
+        )
+
+        book.add(future)
+        book.add(due)
+        book.add(expired)
+        due_items = book.due_intents(now)
+
+        self.assertEqual([item.id for item in due_items], ["due"])
+        self.assertEqual(book.get("future").status, ScheduledOrderStatus.PENDING)
+        self.assertEqual(book.get("due").status, ScheduledOrderStatus.ELIGIBLE)
+        self.assertEqual(book.get("expired").status, ScheduledOrderStatus.EXPIRED)
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run:
+
+```powershell
+& 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest tests.test_ml_training_and_scheduling -v
+```
+
+Expected: FAIL with import errors for model and scheduler modules.
+
+- [ ] **Step 3: Add ML training and model store implementation**
+
+Create `market_sentinel/model_training.py`:
+
+```python
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from decimal import Decimal
+
+
+@dataclass(frozen=True)
+class TrainingExample:
+    features: dict[str, Decimal]
+    label: int
+
+
+@dataclass(frozen=True)
+class LinearModel:
+    version: str
+    feature_names: tuple[str, ...]
+    weights: dict[str, Decimal]
+    bias: Decimal
+    training_rows: int
+    accuracy: Decimal
+    created_at: str
+
+    def predict_score(self, features: dict[str, Decimal]) -> Decimal:
+        linear = self.bias
+        for name in self.feature_names:
+            linear += self.weights.get(name, Decimal("0")) * features.get(name, Decimal("0"))
+        score = Decimal("0.5") + linear
+        bounded = max(Decimal("0"), min(Decimal("1"), score))
+        return bounded.quantize(Decimal("0.0001"))
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "version": self.version,
+            "feature_names": list(self.feature_names),
+            "weights": {name: str(value) for name, value in self.weights.items()},
+            "bias": str(self.bias),
+            "training_rows": self.training_rows,
+            "accuracy": str(self.accuracy),
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, object]) -> "LinearModel":
+        weights_payload = payload["weights"]
+        if not isinstance(weights_payload, dict):
+            raise ValueError("weights payload must be an object")
+        return cls(
+            version=str(payload["version"]),
+            feature_names=tuple(str(item) for item in payload["feature_names"]),
+            weights={str(name): Decimal(str(value)) for name, value in weights_payload.items()},
+            bias=Decimal(str(payload["bias"])),
+            training_rows=int(payload["training_rows"]),
+            accuracy=Decimal(str(payload["accuracy"])),
+            created_at=str(payload["created_at"]),
+        )
+
+
+def _linear_score(weights: dict[str, Decimal], bias: Decimal, feature_names: tuple[str, ...], features: dict[str, Decimal]) -> Decimal:
+    score = bias
+    for name in feature_names:
+        score += weights[name] * features.get(name, Decimal("0"))
+    return score
+
+
+def train_linear_model(examples: list[TrainingExample], *, epochs: int = 10, learning_rate: Decimal = Decimal("0.1")) -> LinearModel:
+    if not examples:
+        raise ValueError("at least one training example is required")
+    feature_names = tuple(sorted({name for example in examples for name in example.features}))
+    weights = {name: Decimal("0") for name in feature_names}
+    bias = Decimal("0")
+
+    for _ in range(epochs):
+        for example in examples:
+            predicted = 1 if _linear_score(weights, bias, feature_names, example.features) >= 0 else 0
+            error = Decimal(example.label - predicted)
+            bias += learning_rate * error
+            for name in feature_names:
+                weights[name] += learning_rate * error * example.features.get(name, Decimal("0"))
+
+    correct = 0
+    for example in examples:
+        predicted_score = Decimal("0.5") + _linear_score(weights, bias, feature_names, example.features)
+        predicted = 1 if predicted_score >= Decimal("0.5") else 0
+        if predicted == example.label:
+            correct += 1
+    accuracy = (Decimal(correct) / Decimal(len(examples))).quantize(Decimal("0.0001"))
+    created = datetime.now(timezone.utc)
+    return LinearModel(
+        version=f"model-{created.strftime('%Y%m%d%H%M%S%f')}",
+        feature_names=feature_names,
+        weights=weights,
+        bias=bias,
+        training_rows=len(examples),
+        accuracy=accuracy,
+        created_at=created.isoformat(),
+    )
+```
+
+Create `market_sentinel/model_store.py`:
+
+```python
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from market_sentinel.model_training import LinearModel
+
+
+class ModelStore:
+    def __init__(self, root: Path):
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.active_path = self.root / "active_model.txt"
+
+    def save(self, model: LinearModel) -> Path:
+        path = self.root / f"{model.version}.json"
+        path.write_text(json.dumps(model.to_payload(), indent=2, sort_keys=True), encoding="utf-8")
+        return path
+
+    def activate(self, version: str) -> None:
+        path = self.root / f"{version}.json"
+        if not path.exists():
+            raise FileNotFoundError(path)
+        self.active_path.write_text(version, encoding="utf-8")
+
+    def load(self, version: str) -> LinearModel:
+        payload = json.loads((self.root / f"{version}.json").read_text(encoding="utf-8"))
+        return LinearModel.from_payload(payload)
+
+    def load_active(self) -> LinearModel:
+        version = self.active_path.read_text(encoding="utf-8").strip()
+        return self.load(version)
+```
+
+- [ ] **Step 4: Add scheduled order implementation**
+
+Create `market_sentinel/scheduler.py`:
+
+```python
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from enum import StrEnum
+
+from market_sentinel.models import OrderIntent
+
+
+class ScheduledOrderStatus(StrEnum):
+    PENDING = "pending"
+    ELIGIBLE = "eligible"
+    EXPIRED = "expired"
+    BLOCKED = "blocked"
+    SUBMITTED = "submitted"
+    CANCELLED = "cancelled"
+
+
+@dataclass
+class ScheduledOrderIntent:
+    id: str
+    intent: OrderIntent
+    eligible_at: datetime
+    expires_at: datetime
+    reason: str
+    model_version: str | None = None
+    status: ScheduledOrderStatus = ScheduledOrderStatus.PENDING
+    block_reason: str | None = None
+
+
+class ScheduledOrderBook:
+    def __init__(self):
+        self._items: dict[str, ScheduledOrderIntent] = {}
+
+    def add(self, scheduled: ScheduledOrderIntent) -> None:
+        self._items[scheduled.id] = scheduled
+
+    def get(self, scheduled_id: str) -> ScheduledOrderIntent:
+        return self._items[scheduled_id]
+
+    def due_intents(self, now: datetime) -> list[ScheduledOrderIntent]:
+        due: list[ScheduledOrderIntent] = []
+        for scheduled in self._items.values():
+            if scheduled.status != ScheduledOrderStatus.PENDING:
+                continue
+            if now > scheduled.expires_at:
+                scheduled.status = ScheduledOrderStatus.EXPIRED
+                continue
+            if now >= scheduled.eligible_at:
+                scheduled.status = ScheduledOrderStatus.ELIGIBLE
+                due.append(scheduled)
+        return due
+
+    def mark_blocked(self, scheduled_id: str, reason: str) -> None:
+        scheduled = self.get(scheduled_id)
+        scheduled.status = ScheduledOrderStatus.BLOCKED
+        scheduled.block_reason = reason
+```
+
+- [ ] **Step 5: Run ML and scheduling tests to verify they pass**
+
+Run:
+
+```powershell
+& 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest tests.test_ml_training_and_scheduling -v
+```
+
+Expected: PASS with `Ran 3 tests`.
+
+- [ ] **Step 6: Commit ML training and scheduling**
+
+Run:
+
+```powershell
+& 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\git\cmd\git.exe' add market_sentinel tests
+& 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\git\cmd\git.exe' commit -m 'feat: add model training and scheduled intents'
+```
+
+Expected: commit succeeds.
+
+---
+
+### Task 5: Risk And Compliance Gates
 
 **Files:**
 - Create: `market_sentinel/risk.py`
@@ -959,7 +1309,7 @@ Expected: commit succeeds.
 
 ---
 
-### Task 5: Broker Adapters And Execution Boundary
+### Task 6: Broker Adapters And Execution Boundary
 
 **Files:**
 - Create: `market_sentinel/brokers.py`
@@ -1183,7 +1533,7 @@ Expected: commit succeeds.
 
 ---
 
-### Task 6: Portfolio, Analysis, Audit, RUFLO, And CLI
+### Task 7: Portfolio, Analysis, Audit, RUFLO, And CLI
 
 **Files:**
 - Create: `market_sentinel/portfolio.py`
@@ -1207,6 +1557,7 @@ from pathlib import Path
 
 from market_sentinel.analysis import AnalysisAgent
 from market_sentinel.audit import AuditLog
+from market_sentinel.cli import _export_dashboard
 from market_sentinel.models import AuditEvent, Fill, Side
 from market_sentinel.portfolio import PortfolioAgent
 from market_sentinel.ruflo import RUFLOAgent
@@ -1242,6 +1593,15 @@ class OperationsTest(unittest.TestCase):
         report = RUFLOAgent().checklist_status()
 
         self.assertFalse(report["can_place_orders"])
+
+    def test_dashboard_export_includes_model_and_scheduled_orders(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "status.json"
+            _export_dashboard(path)
+            data = json.loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(data["model"]["mode"], "advisory")
+        self.assertEqual(data["scheduled_orders"][0]["status"], "pending")
 
 
 if __name__ == "__main__":
@@ -1408,6 +1768,26 @@ def _status() -> dict[str, object]:
 def _export_dashboard(path: Path) -> None:
     data = {
         "status": _status(),
+        "model": {
+            "mode": "advisory",
+            "active_version": "untrained-baseline",
+            "last_trained_at": None,
+            "accuracy": None,
+            "feature_set": ["momentum", "average_volume"],
+            "can_place_orders": False,
+        },
+        "scheduled_orders": [
+            {
+                "id": "paper-open-check",
+                "symbol": "SPY",
+                "market": "US",
+                "eligible_at": "2026-07-06T13:30:00+00:00",
+                "expires_at": "2026-07-06T20:00:00+00:00",
+                "status": "pending",
+                "model_version": "untrained-baseline",
+                "gate": "must pass fresh risk and compliance checks",
+            }
+        ],
         "equity_summary": {
             key: str(value)
             for key, value in AnalysisAgent().summarize_equity([Decimal("100000"), Decimal("100500"), Decimal("100100")]).items()
@@ -1447,7 +1827,7 @@ Run:
 & 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m unittest tests.test_operations -v
 ```
 
-Expected: PASS with `Ran 4 tests`.
+Expected: PASS with `Ran 5 tests`.
 
 - [ ] **Step 5: Run all Python tests**
 
@@ -1472,7 +1852,7 @@ Expected: commit succeeds.
 
 ---
 
-### Task 7: Sites Control Center
+### Task 8: Sites Control Center
 
 **Files:**
 - Create directory from starter: `apps/control-center/`
@@ -1593,6 +1973,24 @@ export default function Home() {
         checks: string[];
       };
     };
+    model: {
+      mode: string;
+      active_version: string;
+      last_trained_at: string | null;
+      accuracy: string | null;
+      feature_set: string[];
+      can_place_orders: boolean;
+    };
+    scheduled_orders: Array<{
+      id: string;
+      symbol: string;
+      market: string;
+      eligible_at: string;
+      expires_at: string;
+      status: string;
+      model_version: string;
+      gate: string;
+    }>;
     equity_summary: Record<string, string>;
     validation_gates: Gate[];
   };
@@ -1609,7 +2007,7 @@ export default function Home() {
               Control Center
             </h1>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
             <div className="border border-[#d8ded2] bg-[#f7f8f4] p-3">
               <p className="text-[#5e6d62]">Mode</p>
               <p className="mt-1 font-semibold">{data.status.mode}</p>
@@ -1627,6 +2025,10 @@ export default function Home() {
             <div className="border border-[#d8ded2] bg-[#f7f8f4] p-3">
               <p className="text-[#5e6d62]">RUFLO</p>
               <p className="mt-1 font-semibold">{data.status.ruflo.role}</p>
+            </div>
+            <div className="border border-[#d8ded2] bg-[#f7f8f4] p-3">
+              <p className="text-[#5e6d62]">ML</p>
+              <p className="mt-1 font-semibold">{data.model.mode}</p>
             </div>
           </div>
         </div>
@@ -1658,6 +2060,45 @@ export default function Home() {
               </div>
             ))}
           </dl>
+        </section>
+
+        <section className="border border-[#d8ded2] bg-white p-5">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-xl font-semibold">ML Model</h2>
+            <StatePill state={data.model.mode} />
+          </div>
+          <dl className="mt-5 grid grid-cols-2 gap-3">
+            <div className="border border-[#e3e7df] p-3">
+              <dt className="text-sm text-[#5e6d62]">Active version</dt>
+              <dd className="mt-1 font-mono text-sm">{data.model.active_version}</dd>
+            </div>
+            <div className="border border-[#e3e7df] p-3">
+              <dt className="text-sm text-[#5e6d62]">Accuracy</dt>
+              <dd className="mt-1 font-mono text-sm">{data.model.accuracy ?? "not trained"}</dd>
+            </div>
+            <div className="col-span-2 border border-[#e3e7df] p-3">
+              <dt className="text-sm text-[#5e6d62]">Feature set</dt>
+              <dd className="mt-1 text-sm font-medium">{data.model.feature_set.join(", ")}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="border border-[#d8ded2] bg-white p-5">
+          <h2 className="text-xl font-semibold">Scheduled Intents</h2>
+          <div className="mt-5 divide-y divide-[#e3e7df]">
+            {data.scheduled_orders.map((order) => (
+              <div className="py-3" key={order.id}>
+                <div className="flex items-center justify-between gap-4">
+                  <p className="font-medium">{order.symbol} / {order.market}</p>
+                  <StatePill state={order.status} />
+                </div>
+                <p className="mt-2 text-sm text-[#5e6d62]">{order.gate}</p>
+                <p className="mt-2 font-mono text-xs text-[#5e6d62]">
+                  {order.eligible_at} to {order.expires_at}
+                </p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="border border-[#d8ded2] bg-white p-5 lg:col-span-2">
@@ -1735,7 +2176,7 @@ Expected: commit succeeds.
 
 ---
 
-### Task 8: Operating Docs, Review, And Publish Readiness
+### Task 9: Operating Docs, Review, And Publish Readiness
 
 **Files:**
 - Create: `docs/compliance-checklist.md`
@@ -1763,6 +2204,9 @@ These gates require human verification before any live-small trading run.
 
 - Unit tests pass.
 - Backtest uses leakage-safe features and realistic fills/costs.
+- Model training produces a versioned artifact with validation metrics.
+- Model updates are audited before an active version changes.
+- Scheduled order intents are rechecked when eligible and cannot bypass risk or compliance.
 - Four full weeks of paper trading are complete.
 - Daily reconciliation and audit logs are clean.
 - P0 alert path is tested.
@@ -1792,6 +2236,14 @@ The default mode is `disabled`. Use `paper` for mock or broker paper workflows. 
 & 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m market_sentinel.cli status
 & 'C:\Users\Dell\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m market_sentinel.cli export-dashboard --path apps/control-center/public/status.json
 ```
+
+## Machine Learning
+
+The first ML model is advisory. It can score, rank, or filter strategy signals, but it cannot place orders, override blocked orders, or enable live-small mode. Model updates must produce versioned artifacts and audit events.
+
+## Scheduled Intents
+
+Scheduled order intents are queued candidates. When they become eligible, they must pass fresh market data, risk, compliance, account allowlist, runtime mode, and broker-readiness checks before the execution boundary can submit anything.
 
 ## Emergency Mode
 
@@ -1890,6 +2342,6 @@ Expected: build exits 0. After that, use the Sites connector flow to create or r
 
 ## Self-Review Notes
 
-- Spec coverage: the plan covers safe defaults, all named agents, broker boundaries, risk defaults, runtime modes, validation gates, GitHub readiness, Sites control center, CodeRabbit review, Expo deferral, and public-equity guardrails.
+- Spec coverage: the plan covers safe defaults, all named agents, advisory ML training and model updates, scheduled order intents, broker boundaries, risk defaults, runtime modes, validation gates, GitHub readiness, Sites control center, CodeRabbit review, Expo deferral, and public-equity guardrails.
 - Scope: the first build creates a working scaffold and dashboard. The four-week paper gate remains an operating requirement because it cannot be satisfied by initial code.
-- Type consistency: `Settings`, `RuntimeMode`, `OrderIntent`, `Decision`, `AccountSnapshot`, `Position`, and broker names are used consistently across tasks.
+- Type consistency: `Settings`, `RuntimeMode`, `OrderIntent`, `Decision`, `AccountSnapshot`, `Position`, `LinearModel`, `ScheduledOrderIntent`, and broker names are used consistently across tasks.
