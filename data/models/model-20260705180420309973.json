@@ -1,0 +1,18 @@
+{
+  "accuracy": "1.0000",
+  "bias": "0.0",
+  "created_at": "2026-07-05T18:04:20.309973+00:00",
+  "feature_names": [
+    "average_volume",
+    "momentum"
+  ],
+  "promoted": true,
+  "promotion_threshold": "0.9000",
+  "training_rows": 30,
+  "validation_rows": 10,
+  "version": "model-20260705180420309973",
+  "weights": {
+    "average_volume": "-0.01000",
+    "momentum": "0.16000"
+  }
+}

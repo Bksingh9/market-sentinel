@@ -6,15 +6,18 @@
     "start": "100000"
   },
   "model": {
-    "accuracy": "0.5000",
-    "active_version": "model-20260705143313528817",
+    "accuracy": "1.0000",
+    "active_version": "model-20260705180420309973",
     "can_place_orders": false,
     "feature_set": [
       "average_volume",
       "momentum"
     ],
-    "last_trained_at": "2026-07-05T14:33:13.528817+00:00",
-    "mode": "advisory"
+    "last_trained_at": "2026-07-05T18:04:20.309973+00:00",
+    "mode": "advisory",
+    "promoted": true,
+    "promotion_threshold": "0.9000",
+    "validation_rows": 10
   },
   "scheduled_orders": [
     {
@@ -23,7 +26,7 @@
       "gate": "must pass fresh risk and compliance checks",
       "id": "paper-open-check",
       "market": "US",
-      "model_version": "model-20260705143313528817",
+      "model_version": "model-20260705180420309973",
       "status": "pending",
       "symbol": "SPY"
     }
@@ -61,7 +64,7 @@
       "state": "ready"
     },
     {
-      "name": "Model training",
+      "name": "Model accuracy gate",
       "state": "ready"
     },
     {

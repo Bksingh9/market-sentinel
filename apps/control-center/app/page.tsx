@@ -32,6 +32,9 @@ type DashboardData = {
     active_version: string;
     last_trained_at: string | null;
     accuracy: string | null;
+    validation_rows: number;
+    promotion_threshold: string;
+    promoted: boolean;
     feature_set: string[];
     can_place_orders: boolean;
   };
@@ -138,11 +141,14 @@ export default function Home() {
         <section className="border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-xl font-semibold">ML Model</h2>
-            <StatePill state={data.model.mode} />
+            <StatePill state={data.model.promoted ? "ready" : "blocked"} />
           </div>
           <dl className="mt-5 grid grid-cols-2 gap-3">
             <Metric label="Active version" value={data.model.active_version} />
             <Metric label="Accuracy" value={data.model.accuracy ?? "not trained"} />
+            <Metric label="90% gate" value={data.model.promoted ? "passed" : "blocked"} />
+            <Metric label="Validation rows" value={String(data.model.validation_rows)} />
+            <Metric label="Threshold" value={data.model.promotion_threshold} />
             <div className="col-span-2 border border-slate-200 bg-white p-3">
               <dt className="text-sm text-slate-500">Feature set</dt>
               <dd className="mt-1 text-sm font-medium text-slate-950">{data.model.feature_set.join(", ")}</dd>

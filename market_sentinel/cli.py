@@ -12,6 +12,9 @@ from market_sentinel.model_training import TrainingExample, train_linear_model
 from market_sentinel.ruflo import RUFLOAgent
 
 
+MODEL_PROMOTION_THRESHOLD = Decimal("0.9000")
+
+
 def _status() -> dict[str, object]:
     settings = load_settings()
     return {
@@ -33,16 +36,35 @@ def _status() -> dict[str, object]:
     }
 
 
+def _training_dataset() -> tuple[list[TrainingExample], list[TrainingExample]]:
+    train: list[TrainingExample] = []
+    validation: list[TrainingExample] = []
+    for index in range(1, 21):
+        momentum = (Decimal(index) / Decimal("10")).quantize(Decimal("0.0001"))
+        volume = (Decimal("1") + (Decimal(index % 5) / Decimal("10"))).quantize(Decimal("0.0001"))
+        positive = TrainingExample({"momentum": momentum, "average_volume": volume}, 1)
+        negative = TrainingExample({"momentum": -momentum, "average_volume": volume}, 0)
+        if index % 4 == 0:
+            validation.extend([positive, negative])
+        else:
+            train.extend([positive, negative])
+    return train, validation
+
+
 def _train_model(model_dir: Path) -> str:
-    examples = [
-        TrainingExample({"momentum": Decimal("0.04"), "average_volume": Decimal("1000")}, 1),
-        TrainingExample({"momentum": Decimal("-0.03"), "average_volume": Decimal("900")}, 0),
-        TrainingExample({"momentum": Decimal("0.02"), "average_volume": Decimal("1100")}, 1),
-        TrainingExample({"momentum": Decimal("-0.02"), "average_volume": Decimal("800")}, 0),
-    ]
-    model = train_linear_model(examples, epochs=16)
+    train, validation = _training_dataset()
+    model = train_linear_model(
+        train,
+        validation_examples=validation,
+        epochs=20,
+        promotion_threshold=MODEL_PROMOTION_THRESHOLD,
+    )
     store = ModelStore(model_dir)
     store.save(model)
+    if not model.promoted:
+        raise RuntimeError(
+            f"model accuracy {model.accuracy} is below promotion threshold {model.promotion_threshold}"
+        )
     store.activate(model.version)
     return model.version
 
@@ -57,6 +79,9 @@ def _model_status(model_dir: Path) -> dict[str, object]:
             "active_version": "untrained-baseline",
             "last_trained_at": None,
             "accuracy": None,
+            "validation_rows": 0,
+            "promotion_threshold": str(MODEL_PROMOTION_THRESHOLD),
+            "promoted": False,
             "feature_set": ["momentum", "average_volume"],
             "can_place_orders": False,
         }
@@ -65,6 +90,9 @@ def _model_status(model_dir: Path) -> dict[str, object]:
         "active_version": model.version,
         "last_trained_at": model.created_at,
         "accuracy": str(model.accuracy),
+        "validation_rows": model.validation_rows,
+        "promotion_threshold": str(model.promotion_threshold),
+        "promoted": model.promoted,
         "feature_set": list(model.feature_names),
         "can_place_orders": False,
     }
@@ -92,7 +120,10 @@ def _export_dashboard(path: Path, *, model_dir: Path = Path("data/models")) -> N
         },
         "validation_gates": [
             {"name": "Unit tests", "state": "ready"},
-            {"name": "Model training", "state": "ready" if _model_status(model_dir)["accuracy"] else "not-started"},
+            {
+                "name": "Model accuracy gate",
+                "state": "ready" if _model_status(model_dir)["promoted"] else "blocked",
+            },
             {"name": "Four-week paper gate", "state": "not-started"},
             {"name": "Live-small compliance", "state": "blocked"},
         ],

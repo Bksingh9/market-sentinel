@@ -19,6 +19,9 @@ class LinearModel:
     bias: Decimal
     training_rows: int
     accuracy: Decimal
+    validation_rows: int
+    promotion_threshold: Decimal
+    promoted: bool
     created_at: str
 
     def predict_score(self, features: dict[str, Decimal]) -> Decimal:
@@ -37,6 +40,9 @@ class LinearModel:
             "bias": str(self.bias),
             "training_rows": self.training_rows,
             "accuracy": str(self.accuracy),
+            "validation_rows": self.validation_rows,
+            "promotion_threshold": str(self.promotion_threshold),
+            "promoted": self.promoted,
             "created_at": self.created_at,
         }
 
@@ -45,6 +51,13 @@ class LinearModel:
         weights_payload = payload["weights"]
         if not isinstance(weights_payload, dict):
             raise ValueError("weights payload must be an object")
+        promoted_payload = payload.get("promoted")
+        if promoted_payload is None:
+            promoted = Decimal(str(payload["accuracy"])) >= Decimal("0.9000")
+        elif isinstance(promoted_payload, bool):
+            promoted = promoted_payload
+        else:
+            promoted = str(promoted_payload).lower() in {"1", "true", "yes", "on"}
         return cls(
             version=str(payload["version"]),
             feature_names=tuple(str(item) for item in payload["feature_names"]),
@@ -52,6 +65,9 @@ class LinearModel:
             bias=Decimal(str(payload["bias"])),
             training_rows=int(payload["training_rows"]),
             accuracy=Decimal(str(payload["accuracy"])),
+            validation_rows=int(payload.get("validation_rows", payload["training_rows"])),
+            promotion_threshold=Decimal(str(payload.get("promotion_threshold", "0.9000"))),
+            promoted=promoted,
             created_at=str(payload["created_at"]),
         )
 
@@ -71,8 +87,10 @@ def _linear_score(
 def train_linear_model(
     examples: list[TrainingExample],
     *,
+    validation_examples: list[TrainingExample] | None = None,
     epochs: int = 10,
     learning_rate: Decimal = Decimal("0.1"),
+    promotion_threshold: Decimal = Decimal("0.9000"),
 ) -> LinearModel:
     if not examples:
         raise ValueError("at least one training example is required")
@@ -88,13 +106,8 @@ def train_linear_model(
             for name in feature_names:
                 weights[name] += learning_rate * error * example.features.get(name, Decimal("0"))
 
-    correct = 0
-    for example in examples:
-        predicted_score = Decimal("0.5") + _linear_score(weights, bias, feature_names, example.features)
-        predicted = 1 if predicted_score >= Decimal("0.5") else 0
-        if predicted == example.label:
-            correct += 1
-    accuracy = (Decimal(correct) / Decimal(len(examples))).quantize(Decimal("0.0001"))
+    validation_set = validation_examples or examples
+    accuracy = evaluate_linear_model(weights, bias, feature_names, validation_set)
     created = datetime.now(timezone.utc)
     return LinearModel(
         version=f"model-{created.strftime('%Y%m%d%H%M%S%f')}",
@@ -103,5 +116,25 @@ def train_linear_model(
         bias=bias,
         training_rows=len(examples),
         accuracy=accuracy,
+        validation_rows=len(validation_set),
+        promotion_threshold=promotion_threshold,
+        promoted=accuracy >= promotion_threshold,
         created_at=created.isoformat(),
     )
+
+
+def evaluate_linear_model(
+    weights: dict[str, Decimal],
+    bias: Decimal,
+    feature_names: tuple[str, ...],
+    examples: list[TrainingExample],
+) -> Decimal:
+    if not examples:
+        raise ValueError("at least one validation example is required")
+    correct = 0
+    for example in examples:
+        predicted_score = Decimal("0.5") + _linear_score(weights, bias, feature_names, example.features)
+        predicted = 1 if predicted_score >= Decimal("0.5") else 0
+        if predicted == example.label:
+            correct += 1
+    return (Decimal(correct) / Decimal(len(examples))).quantize(Decimal("0.0001"))

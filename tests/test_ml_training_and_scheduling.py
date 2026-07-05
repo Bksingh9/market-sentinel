@@ -38,6 +38,39 @@ class MLTrainingAndSchedulingTest(unittest.TestCase):
         self.assertIn("momentum", model.feature_names)
         self.assertGreater(model.predict_score({"momentum": Decimal("0.04"), "average_volume": Decimal("1000")}), Decimal("0.5"))
 
+    def test_training_promotes_only_when_validation_accuracy_clears_90_percent(self):
+        train = [
+            TrainingExample({"momentum": Decimal("1.0")}, 1),
+            TrainingExample({"momentum": Decimal("-1.0")}, 0),
+            TrainingExample({"momentum": Decimal("0.8")}, 1),
+            TrainingExample({"momentum": Decimal("-0.8")}, 0),
+        ]
+        validation = [
+            TrainingExample({"momentum": Decimal("0.6")}, 1),
+            TrainingExample({"momentum": Decimal("-0.6")}, 0),
+        ]
+
+        model = train_linear_model(train, validation_examples=validation, epochs=8)
+
+        self.assertGreaterEqual(model.accuracy, Decimal("0.9000"))
+        self.assertTrue(model.promoted)
+        self.assertEqual(model.validation_rows, 2)
+
+    def test_training_blocks_model_below_90_percent_validation_accuracy(self):
+        train = [
+            TrainingExample({"momentum": Decimal("1.0")}, 1),
+            TrainingExample({"momentum": Decimal("-1.0")}, 0),
+        ]
+        validation = [
+            TrainingExample({"momentum": Decimal("0.6")}, 0),
+            TrainingExample({"momentum": Decimal("-0.6")}, 1),
+        ]
+
+        model = train_linear_model(train, validation_examples=validation, epochs=8)
+
+        self.assertLess(model.accuracy, Decimal("0.9000"))
+        self.assertFalse(model.promoted)
+
     def test_model_store_round_trips_active_model(self):
         model = train_linear_model([
             TrainingExample({"momentum": Decimal("0.04")}, 1),
