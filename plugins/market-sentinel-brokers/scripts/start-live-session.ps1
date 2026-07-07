@@ -53,6 +53,17 @@ function Read-Yes {
     return $value -eq "YES"
 }
 
+function Read-CredentialMode {
+    while ($true) {
+        $value = Read-RequiredText "Credential mode only. Type access-token or key-secret" "key-secret"
+        $value = $value.Trim().ToLowerInvariant()
+        if ($value -in @("access-token", "key-secret")) {
+            return $value
+        }
+        Write-Host "That was not a credential mode. Do not paste keys here; type only access-token or key-secret." -ForegroundColor Yellow
+    }
+}
+
 $RepoRoot = Resolve-RepoRoot $RepoRoot
 if ([string]::IsNullOrWhiteSpace($PythonExe)) {
     $PythonExe = $env:MARKET_SENTINEL_PYTHON
@@ -85,7 +96,7 @@ try {
         $env:GROWW_STATIC_IP_ALLOWLISTED = if (Read-Yes "That static IP is allowlisted in Groww") { "true" } else { "false" }
         $env:GROWW_ALGO_ID = Read-RequiredText "Groww broker-approved algo id"
 
-        $credentialMode = Read-RequiredText "Credential mode: access-token or key-secret" "key-secret"
+        $credentialMode = Read-CredentialMode
         $env:GROWW_ACCESS_TOKEN = ""
         $env:GROWW_API_KEY = ""
         $env:GROWW_SECRET_KEY = ""
@@ -94,8 +105,6 @@ try {
         } elseif ($credentialMode -eq "key-secret") {
             $env:GROWW_API_KEY = Read-SecretText "Groww API key"
             $env:GROWW_SECRET_KEY = Read-SecretText "Groww secret key"
-        } else {
-            throw "Credential mode must be access-token or key-secret"
         }
     } elseif ($Broker -eq "alpaca") {
         $env:ALPACA_LIVE_TRADING_ENABLED = "true"
@@ -126,4 +135,3 @@ try {
 } finally {
     Pop-Location
 }
-
