@@ -8,6 +8,7 @@ type Gate = {
 type DashboardData = {
   status: {
     mode: string;
+    primary_broker: string;
     account_id: string;
     live_small_blocked_by_default: boolean;
     apis: {
@@ -15,6 +16,10 @@ type DashboardData = {
       alpaca_credentials_present: boolean;
       groww_real_api_enabled: boolean;
       groww_credentials_present: boolean;
+      dhan_real_api_enabled: boolean;
+      dhan_credentials_present: boolean;
+      dhan_static_ip_configured: boolean;
+      dhan_security_map_present: boolean;
       twilio_alerts_enabled: boolean;
       twilio_credentials_present: boolean;
       twilio_sender_configured: boolean;
@@ -28,6 +33,9 @@ type DashboardData = {
           ready: boolean;
         };
         groww: {
+          ready: boolean;
+        };
+        dhan: {
           ready: boolean;
         };
       };
@@ -106,6 +114,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
             <Metric label="Mode" value={data.status.mode} />
+            <Metric label="Broker" value={data.status.primary_broker} />
             <Metric label="Account" value={data.status.account_id} />
             <Metric label="Live-small" value={data.status.live_small_blocked_by_default ? "blocked" : "armed"} />
             <Metric label="ML" value={data.model.mode} />
@@ -135,13 +144,18 @@ export default function Home() {
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <Metric label="Alpaca" value={data.status.apis.alpaca_real_api_enabled ? "enabled" : "off"} />
             <Metric label="Groww" value={data.status.apis.groww_real_api_enabled ? "enabled" : "off"} />
+            <Metric label="Dhan" value={data.status.apis.dhan_real_api_enabled ? "enabled" : "off"} />
             <Metric label="Twilio" value={data.status.apis.twilio_alerts_enabled ? "enabled" : "off"} />
             <Metric label="Live preflight" value={data.status.live_preflight.ready_to_trade ? "ready" : "blocked"} />
             <Metric label="Alpaca live" value={data.status.live_preflight.apis.alpaca.ready ? "ready" : "blocked"} />
             <Metric label="Groww live" value={data.status.live_preflight.apis.groww.ready ? "ready" : "blocked"} />
+            <Metric label="Dhan live" value={data.status.live_preflight.apis.dhan.ready ? "ready" : "blocked"} />
             <Metric label="Twilio alerts" value={data.status.live_preflight.alerts.twilio.ready ? "ready" : "blocked"} />
             <Metric label="Alpaca keys" value={data.status.apis.alpaca_credentials_present ? "present" : "missing"} />
             <Metric label="Groww token" value={data.status.apis.groww_credentials_present ? "present" : "missing"} />
+            <Metric label="Dhan token" value={data.status.apis.dhan_credentials_present ? "present" : "missing"} />
+            <Metric label="Dhan static IP" value={data.status.apis.dhan_static_ip_configured ? "ready" : "missing"} />
+            <Metric label="Dhan scrip map" value={data.status.apis.dhan_security_map_present ? "present" : "missing"} />
             <Metric label="Twilio auth" value={data.status.apis.twilio_credentials_present ? "present" : "missing"} />
             <Metric label="Twilio sender" value={data.status.apis.twilio_sender_configured ? "configured" : "missing"} />
             <Metric

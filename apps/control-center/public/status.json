@@ -36,8 +36,13 @@
     "apis": {
       "alpaca_credentials_present": false,
       "alpaca_real_api_enabled": false,
+      "dhan_credentials_present": false,
+      "dhan_real_api_enabled": false,
+      "dhan_security_map_present": false,
+      "dhan_static_ip_configured": false,
       "groww_credentials_present": false,
       "groww_real_api_enabled": false,
+      "groww_static_ip_configured": false,
       "twilio_alerts_enabled": false,
       "twilio_credentials_present": false,
       "twilio_messaging_service_configured": false,
@@ -64,7 +69,6 @@
         "alpaca": {
           "enabled": false,
           "missing": [
-            "MARKET_SENTINEL_MODE=live-small",
             "ALPACA_LIVE_TRADING_ENABLED",
             "ALPACA_REAL_API_ENABLED",
             "ALPACA_ACCOUNT_ID",
@@ -73,20 +77,39 @@
           ],
           "ready": false
         },
+        "dhan": {
+          "enabled": false,
+          "missing": [
+            "INDIA_LIVE_TRADING_ENABLED",
+            "INDIA_ALGO_COMPLIANCE_VERIFIED",
+            "DHAN_REAL_API_ENABLED",
+            "DHAN_CLIENT_ID",
+            "DHAN_ACCESS_TOKEN",
+            "DHAN_STATIC_OUTBOUND_IP",
+            "DHAN_STATIC_IP_ALLOWLISTED",
+            "DHAN_PROTECTED_ORDER_CLIENT",
+            "DHAN_SECURITY_ID_MAP"
+          ],
+          "ready": false
+        },
         "groww": {
           "enabled": false,
           "missing": [
-            "MARKET_SENTINEL_MODE=live-small",
             "INDIA_LIVE_TRADING_ENABLED",
             "INDIA_ALGO_COMPLIANCE_VERIFIED",
             "GROWW_REAL_API_ENABLED",
-            "GROWW_ACCESS_TOKEN",
+            "GROWW_API_SUBSCRIPTION_ACTIVE",
+            "GROWW_PROTECTED_ORDER_CLIENT",
+            "GROWW_STATIC_OUTBOUND_IP",
+            "GROWW_STATIC_IP_ALLOWLISTED",
+            "GROWW_ACCESS_TOKEN or GROWW_API_KEY+GROWW_SECRET_KEY",
             "GROWW_ALGO_ID"
           ],
           "ready": false
         }
       },
-      "mode": "disabled",
+      "mode": "live-small",
+      "primary_broker": "groww",
       "ready_to_trade": false,
       "ruflo": {
         "can_place_orders": false,
@@ -94,8 +117,9 @@
         "role": "supervised-coordinator"
       }
     },
-    "live_small_blocked_by_default": true,
-    "mode": "disabled",
+    "live_small_blocked_by_default": false,
+    "mode": "live-small",
+    "primary_broker": "groww",
     "ruflo": {
       "can_place_orders": false,
       "checks": [

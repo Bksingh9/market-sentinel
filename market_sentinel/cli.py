@@ -19,13 +19,29 @@ def _status() -> dict[str, object]:
     settings = load_settings()
     return {
         "mode": settings.mode.value,
+        "primary_broker": settings.primary_broker.value,
         "account_id": settings.account_id,
         "live_small_blocked_by_default": settings.mode.value != "live-small",
         "apis": {
             "alpaca_real_api_enabled": settings.alpaca_real_api_enabled,
             "alpaca_credentials_present": bool(settings.alpaca_key_id and settings.alpaca_secret_key),
             "groww_real_api_enabled": settings.groww_real_api_enabled,
-            "groww_credentials_present": bool(settings.groww_access_token and settings.groww_algo_id),
+            "groww_credentials_present": bool(
+                settings.groww_algo_id
+                and (
+                    settings.groww_access_token
+                    or (settings.groww_api_key and settings.groww_secret_key)
+                )
+            ),
+            "groww_static_ip_configured": bool(
+                settings.groww_static_outbound_ip and settings.groww_static_ip_allowlisted
+            ),
+            "dhan_real_api_enabled": settings.dhan_real_api_enabled,
+            "dhan_credentials_present": bool(settings.dhan_client_id and settings.dhan_access_token),
+            "dhan_static_ip_configured": bool(
+                settings.dhan_static_outbound_ip and settings.dhan_static_ip_allowlisted
+            ),
+            "dhan_security_map_present": bool(settings.dhan_security_id_map),
             "twilio_alerts_enabled": settings.twilio_alerts_enabled,
             "twilio_credentials_present": bool(settings.twilio_account_sid and settings.twilio_auth_token),
             "twilio_sender_configured": bool(settings.twilio_messaging_service_sid or settings.twilio_from),

@@ -29,6 +29,13 @@ class ComplianceGuard:
                 reasons.append("India algo compliance is not verified")
             if not self.settings.groww_algo_id:
                 reasons.append("Groww algo id is missing")
+        if broker == "dhan" and self.settings.mode == RuntimeMode.LIVE_SMALL:
+            if intent.market != "IN":
+                reasons.append("Dhan live-small is limited to India market")
+            if not self.settings.india_live_trading_enabled:
+                reasons.append("India live trading flag is disabled")
+            if not self.settings.india_algo_compliance_verified:
+                reasons.append("India algo compliance is not verified")
         if broker == "alpaca" and self.settings.mode == RuntimeMode.LIVE_SMALL:
             if intent.market != "US":
                 reasons.append("Alpaca live-small is limited to US market")
