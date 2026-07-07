@@ -56,8 +56,10 @@ For Alpaca to be live-ready, the local environment must contain valid fresh valu
 1. Acknowledge the requested broker path and state that credentials must be set locally, not retrieved from browser/chat.
 2. Use `scripts/check-readiness.ps1` from this plugin when the user asks for readiness status.
 3. Use `scripts/export-dashboard-status.ps1` when the user wants the dashboard refreshed after setting env values.
-4. If preflight fails, report only the missing gate names, not secret values.
-5. If preflight passes, state that the system is ready for supervised order submission, then ask for exact order parameters before any real order action.
+4. Use `scripts/start-live-session.ps1` when the user wants a local setup wizard. It prompts for secrets locally, does not echo them, runs preflight, refreshes the dashboard, and starts the local dashboard.
+5. Use `scripts/submit-confirmed-order.ps1` only after preflight is ready and the user provides exact real-money order parameters and the confirmation phrase `I_CONFIRM_REAL_MONEY_ORDER`.
+6. If preflight fails, report only the missing gate names, not secret values.
+7. If preflight passes, state that the system is ready for supervised order submission, then ask for exact order parameters before any real order action.
 
 ## Script Usage
 
@@ -73,3 +75,14 @@ Refresh dashboard status:
 powershell -ExecutionPolicy Bypass -File plugins\market-sentinel-brokers\scripts\export-dashboard-status.ps1 -Broker groww
 ```
 
+Run the local setup wizard:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File plugins\market-sentinel-brokers\scripts\start-live-session.ps1 -Broker groww
+```
+
+Submit a confirmed live order only after the preflight is ready:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File plugins\market-sentinel-brokers\scripts\submit-confirmed-order.ps1 -Broker groww -Symbol IDEA -Quantity 1 -LimitPrice 10.50 -StopLoss 10.00 -TakeProfit 11.50 -ConfirmRealMoney I_CONFIRM_REAL_MONEY_ORDER
+```

@@ -2,17 +2,22 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
 from market_sentinel.analysis import AnalysisAgent
+from market_sentinel.brokers import AlpacaBrokerAdapter, GrowwBrokerAdapter, GrowwSDKClient
 from market_sentinel.config import load_settings
+from market_sentinel.execution import ExecutionAgent
 from market_sentinel.model_store import ModelStore
 from market_sentinel.model_training import TrainingExample, train_linear_model
+from market_sentinel.models import AccountSnapshot, InstrumentType, OrderIntent, Side
 from market_sentinel.ruflo import RUFLOAgent, live_preflight_report
 
 
 MODEL_PROMOTION_THRESHOLD = Decimal("0.9000")
+REAL_ORDER_CONFIRMATION = "I_CONFIRM_REAL_MONEY_ORDER"
 
 
 def _status() -> dict[str, object]:
@@ -149,6 +154,142 @@ def _export_dashboard(path: Path, *, model_dir: Path = Path("data/models")) -> N
     path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _submit_order(args: argparse.Namespace) -> int:
+    if args.confirm_real_money != REAL_ORDER_CONFIRMATION:
+        print(
+            json.dumps(
+                {
+                    "decision": "blocked",
+                    "reasons": [
+                        f"--confirm-real-money must equal {REAL_ORDER_CONFIRMATION}",
+                    ],
+                    "live_order_submitted": False,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 2
+
+    settings = load_settings()
+    report = live_preflight_report(settings)
+    broker_name = args.broker or settings.primary_broker.value
+    if broker_name == "any":
+        print(
+            json.dumps(
+                {
+                    "decision": "blocked",
+                    "reasons": ["broker must be groww or alpaca for live order submission"],
+                    "live_order_submitted": False,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 2
+    if settings.primary_broker.value not in {"any", broker_name}:
+        print(
+            json.dumps(
+                {
+                    "decision": "blocked",
+                    "reasons": [f"primary broker is {settings.primary_broker.value}, not {broker_name}"],
+                    "live_order_submitted": False,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 2
+    if not report["ready_to_trade"]:
+        print(
+            json.dumps(
+                {
+                    "decision": "blocked",
+                    "reasons": ["live preflight is not ready"],
+                    "live_order_submitted": False,
+                    "preflight": report,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 1
+    if not report["apis"][broker_name]["ready"]:
+        print(
+            json.dumps(
+                {
+                    "decision": "blocked",
+                    "reasons": [f"{broker_name} preflight is not ready"],
+                    "live_order_submitted": False,
+                    "preflight": report,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 1
+
+    market = args.market or ("IN" if broker_name == "groww" else "US")
+    intent = OrderIntent(
+        symbol=args.symbol.upper(),
+        market=market,
+        instrument_type=InstrumentType(args.instrument_type),
+        side=Side(args.side),
+        quantity=Decimal(args.quantity),
+        limit_price=Decimal(args.limit_price),
+        stop_loss=Decimal(args.stop_loss),
+        take_profit=Decimal(args.take_profit),
+        strategy_id=args.strategy_id,
+    )
+    if broker_name == "groww":
+        broker = GrowwBrokerAdapter(settings, groww_client=GrowwSDKClient.from_settings(settings))
+    elif broker_name == "alpaca":
+        broker = AlpacaBrokerAdapter(settings)
+    else:
+        print(
+            json.dumps(
+                {
+                    "decision": "blocked",
+                    "reasons": [f"unsupported live broker: {broker_name}"],
+                    "live_order_submitted": False,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 2
+
+    decision = ExecutionAgent(settings, broker).submit(
+        intent,
+        AccountSnapshot(
+            account_id=settings.account_id,
+            cash=Decimal(args.account_cash),
+            equity=Decimal(args.account_equity),
+        ),
+        [],
+        now=datetime.now(timezone.utc),
+    )
+    print(
+        json.dumps(
+            {
+                "decision": "allowed" if decision.allowed else "blocked",
+                "reasons": list(decision.reasons),
+                "broker": broker_name,
+                "symbol": intent.symbol,
+                "side": intent.side.value,
+                "quantity": str(intent.quantity),
+                "limit_price": str(intent.limit_price),
+                "stop_loss": str(intent.stop_loss),
+                "take_profit": str(intent.take_profit),
+                "live_order_submitted": decision.allowed,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0 if decision.allowed else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="market-sentinel")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -160,6 +301,20 @@ def main(argv: list[str] | None = None) -> int:
     export_parser = subcommands.add_parser("export-dashboard")
     export_parser.add_argument("--path", default="apps/control-center/public/status.json")
     export_parser.add_argument("--model-dir", default="data/models")
+    order_parser = subcommands.add_parser("submit-order")
+    order_parser.add_argument("--broker", choices=["groww", "alpaca"])
+    order_parser.add_argument("--symbol", required=True)
+    order_parser.add_argument("--market", choices=["IN", "US"])
+    order_parser.add_argument("--instrument-type", choices=[item.value for item in InstrumentType], default="equity")
+    order_parser.add_argument("--side", choices=["buy", "sell"], required=True)
+    order_parser.add_argument("--quantity", required=True)
+    order_parser.add_argument("--limit-price", required=True)
+    order_parser.add_argument("--stop-loss", required=True)
+    order_parser.add_argument("--take-profit", required=True)
+    order_parser.add_argument("--strategy-id", default="manual-supervised")
+    order_parser.add_argument("--account-cash", default="100000")
+    order_parser.add_argument("--account-equity", default="100000")
+    order_parser.add_argument("--confirm-real-money", required=True)
     args = parser.parse_args(argv)
 
     if args.command == "status":
@@ -178,6 +333,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "export-dashboard":
         _export_dashboard(Path(args.path), model_dir=Path(args.model_dir))
         return 0
+    if args.command == "submit-order":
+        return _submit_order(args)
     return 2
 
 

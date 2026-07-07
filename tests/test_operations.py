@@ -82,6 +82,69 @@ class OperationsTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn('"mode"', result.stdout)
 
+    def test_submit_order_requires_real_money_confirmation(self):
+        stream = io.StringIO()
+
+        with redirect_stdout(stream):
+            exit_code = main(
+                [
+                    "submit-order",
+                    "--broker",
+                    "groww",
+                    "--symbol",
+                    "IDEA",
+                    "--side",
+                    "buy",
+                    "--quantity",
+                    "1",
+                    "--limit-price",
+                    "10.5",
+                    "--stop-loss",
+                    "10",
+                    "--take-profit",
+                    "11",
+                    "--confirm-real-money",
+                    "NO",
+                ]
+            )
+
+        data = json.loads(stream.getvalue())
+        self.assertEqual(exit_code, 2)
+        self.assertFalse(data["live_order_submitted"])
+        self.assertIn("--confirm-real-money", data["reasons"][0])
+
+    def test_submit_order_blocks_when_live_preflight_is_not_ready(self):
+        stream = io.StringIO()
+
+        with redirect_stdout(stream):
+            exit_code = main(
+                [
+                    "submit-order",
+                    "--broker",
+                    "groww",
+                    "--symbol",
+                    "IDEA",
+                    "--side",
+                    "buy",
+                    "--quantity",
+                    "1",
+                    "--limit-price",
+                    "10.5",
+                    "--stop-loss",
+                    "10",
+                    "--take-profit",
+                    "11",
+                    "--confirm-real-money",
+                    "I_CONFIRM_REAL_MONEY_ORDER",
+                ]
+            )
+
+        data = json.loads(stream.getvalue())
+        self.assertEqual(exit_code, 1)
+        self.assertFalse(data["live_order_submitted"])
+        self.assertEqual(data["decision"], "blocked")
+        self.assertIn("live preflight is not ready", data["reasons"])
+
 
 if __name__ == "__main__":
     unittest.main()
