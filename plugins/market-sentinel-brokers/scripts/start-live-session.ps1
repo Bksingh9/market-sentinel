@@ -80,7 +80,8 @@ if ([string]::IsNullOrWhiteSpace($NodeExe)) {
 
 Push-Location $RepoRoot
 try {
-    $accountId = Read-RequiredText "Market Sentinel account id" "paper-local"
+    $defaultAccountId = if ($Broker -eq "groww") { "groww-live" } elseif ($Broker -eq "alpaca") { "alpaca-live" } else { "paper-local" }
+    $accountId = Read-RequiredText "Market Sentinel account id" $defaultAccountId
     $env:MARKET_SENTINEL_MODE = "live-small"
     $env:MARKET_SENTINEL_PRIMARY_BROKER = $Broker
     $env:MARKET_SENTINEL_ACCOUNT_ID = $accountId
@@ -96,6 +97,7 @@ try {
         $env:GROWW_STATIC_IP_ALLOWLISTED = if (Read-Yes "That static IP is allowlisted in Groww") { "true" } else { "false" }
         $env:GROWW_ALGO_ID = Read-RequiredText "Groww broker-approved algo id"
 
+        Write-Host "For the next prompt, type only access-token or key-secret. Paste credentials only into the hidden secret prompts after that." -ForegroundColor Cyan
         $credentialMode = Read-CredentialMode
         $env:GROWW_ACCESS_TOKEN = ""
         $env:GROWW_API_KEY = ""
