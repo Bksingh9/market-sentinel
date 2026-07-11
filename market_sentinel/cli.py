@@ -22,6 +22,7 @@ REAL_ORDER_CONFIRMATION = "I_CONFIRM_REAL_MONEY_ORDER"
 
 def _status() -> dict[str, object]:
     settings = load_settings()
+    deployment = _deployment_status()
     return {
         "mode": settings.mode.value,
         "primary_broker": settings.primary_broker.value,
@@ -55,6 +56,21 @@ def _status() -> dict[str, object]:
         },
         "live_preflight": live_preflight_report(settings),
         "ruflo": RUFLOAgent().checklist_status(),
+        "deployment": deployment,
+    }
+
+
+def _deployment_status() -> dict[str, object]:
+    return {
+        "public_control_center": "read-only",
+        "private_execution": "local-supervised",
+        "selected_tunnel": "cloudflare/cloudflared",
+        "tunnel_license": "Apache-2.0",
+        "tunnel_access_policy": "Cloudflare Access or equivalent identity gate required",
+        "live_order_endpoint_public": False,
+        "broker_secrets_public": False,
+        "operator_confirmation_required": REAL_ORDER_CONFIRMATION,
+        "public_dashboard_url": None,
     }
 
 
@@ -146,9 +162,12 @@ def _export_dashboard(path: Path, *, model_dir: Path = Path("data/models")) -> N
                 "name": "Model accuracy gate",
                 "state": "ready" if _model_status(model_dir)["promoted"] else "blocked",
             },
+            {"name": "Read-only public dashboard", "state": "ready"},
+            {"name": "Private execution tunnel", "state": "blocked"},
             {"name": "Four-week paper gate", "state": "not-started"},
             {"name": "Live-small compliance", "state": "blocked"},
         ],
+        "deployment": _deployment_status(),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")

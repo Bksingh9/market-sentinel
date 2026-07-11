@@ -50,3 +50,9 @@ Live-small trading is unavailable until broker credentials, account allowlists, 
 ## RUFLO Runtime Boundary
 
 RUFLO can retrieve sanitized live API readiness, coordinate gate checks, and run a paper-only supervised execution check. RUFLO cannot make discretionary trading calls, book profit autonomously, reveal secrets, or bypass `ExecutionAgent`, risk, compliance, broker, and runtime gates.
+
+## Deployment And Tunnel Boundary
+
+The control center can be deployed as a read-only Sites app. Keep live execution local and supervised. Use `docs/deployment-and-tunnel-runbook.md` and `plugins/market-sentinel-brokers/scripts/start-readonly-dashboard-tunnel.ps1` when a private operator tunnel is needed.
+
+Use the selected open-source tunnel client, `cloudflare/cloudflared`, only as a named tunnel behind Cloudflare Access or an equivalent identity gate. Do not expose broker credentials, `.env` files, or real order submission through a public URL.

@@ -1,4 +1,15 @@
 {
+  "deployment": {
+    "broker_secrets_public": false,
+    "live_order_endpoint_public": false,
+    "operator_confirmation_required": "I_CONFIRM_REAL_MONEY_ORDER",
+    "private_execution": "local-supervised",
+    "public_control_center": "read-only",
+    "public_dashboard_url": null,
+    "selected_tunnel": "cloudflare/cloudflared",
+    "tunnel_access_policy": "Cloudflare Access or equivalent identity gate required",
+    "tunnel_license": "Apache-2.0"
+  },
   "equity_summary": {
     "end": "100100",
     "max_drawdown": "0.0040",
@@ -48,6 +59,17 @@
       "twilio_messaging_service_configured": false,
       "twilio_sender_configured": false,
       "twilio_status_callback_configured": false
+    },
+    "deployment": {
+      "broker_secrets_public": false,
+      "live_order_endpoint_public": false,
+      "operator_confirmation_required": "I_CONFIRM_REAL_MONEY_ORDER",
+      "private_execution": "local-supervised",
+      "public_control_center": "read-only",
+      "public_dashboard_url": null,
+      "selected_tunnel": "cloudflare/cloudflared",
+      "tunnel_access_policy": "Cloudflare Access or equivalent identity gate required",
+      "tunnel_license": "Apache-2.0"
     },
     "live_preflight": {
       "account_allowlisted": true,
@@ -140,6 +162,14 @@
     {
       "name": "Model accuracy gate",
       "state": "ready"
+    },
+    {
+      "name": "Read-only public dashboard",
+      "state": "ready"
+    },
+    {
+      "name": "Private execution tunnel",
+      "state": "blocked"
     },
     {
       "name": "Four-week paper gate",

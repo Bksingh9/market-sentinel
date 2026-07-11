@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Market Sentinel Control Center</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      header {
+        border-bottom: 1px solid #e2e8f0;
+        background: #ffffff;
+      }
+
+      main,
+      .header-inner {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .header-inner {
+        display: grid;
+        gap: 18px;
+        padding: 26px 0;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(28px, 4vw, 42px);
+        font-weight: 720;
+      }
+
+      main {
+        display: grid;
+        gap: 18px;
+        padding: 22px 0 38px;
+      }
+
+      .eyebrow {
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 720;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .metric-grid,
+      .card-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+
+      .card-grid {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      section,
+      .metric {
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+      }
+
+      section {
+        padding: 20px;
+      }
+
+      .metric {
+        min-height: 78px;
+        padding: 12px;
+      }
+
+      .metric dt {
+        color: #64748b;
+        font-size: 13px;
+      }
+
+      .metric dd {
+        margin: 8px 0 0;
+        overflow-wrap: anywhere;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 15px;
+        font-weight: 720;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-top: 1px solid #e2e8f0;
+        padding: 12px 0;
+      }
+
+      .row:first-child {
+        border-top: 0;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 720;
+        white-space: nowrap;
+      }
+
+      .ready {
+        background: #ecfdf5;
+        color: #065f46;
+      }
+
+      .blocked {
+        background: #fff1f2;
+        color: #9f1239;
+      }
+
+      .pending {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .muted {
+        color: #475569;
+        line-height: 1.55;
+      }
+
+      .order {
+        display: grid;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div>
+          <p class="eyebrow">Market Sentinel</p>
+          <h1>Control Center</h1>
+        </div>
+        <div id="hero-metrics" class="metric-grid"></div>
+      </div>
+    </header>
+    <main>
+      <section>
+        <h2>Validation Gates</h2>
+        <div id="gates"></div>
+      </section>
+      <section>
+        <h2>Deployment Boundary</h2>
+        <div id="deployment" class="metric-grid" style="margin-top: 14px"></div>
+      </section>
+      <div class="card-grid">
+        <section>
+          <h2>Broker Readiness</h2>
+          <div id="brokers" class="metric-grid" style="margin-top: 14px"></div>
+        </section>
+        <section>
+          <h2>ML Model</h2>
+          <div id="model" class="metric-grid" style="margin-top: 14px"></div>
+        </section>
+      </div>
+      <section>
+        <h2>Scheduled Intents</h2>
+        <div id="orders" style="margin-top: 14px"></div>
+      </section>
+      <section>
+        <h2>Operating Boundary</h2>
+        <p class="muted">
+          This dashboard is read-only. Live orders remain local and supervised behind risk,
+          compliance, broker, static-IP, and explicit real-money confirmation gates.
+        </p>
+      </section>
+    </main>
+    <script>
+      const metric = (label, value) => `
+        <dl class="metric">
+          <dt>${label}</dt>
+          <dd>${value ?? "unknown"}</dd>
+        </dl>
+      `;
+
+      const pill = (state) => {
+        const tone = state === "ready" || state === "advisory" ? "ready" : state === "pending" ? "pending" : "blocked";
+        return `<span class="pill ${tone}">${state}</span>`;
+      };
+
+      async function load() {
+        const response = await fetch("./status.json", { cache: "no-store" });
+        const data = await response.json();
+        const status = data.status;
+        const deployment = data.deployment;
+
+        document.querySelector("#hero-metrics").innerHTML = [
+          metric("Mode", status.mode),
+          metric("Broker", status.primary_broker),
+          metric("Account", status.account_id),
+          metric("Live preflight", status.live_preflight.ready_to_trade ? "ready" : "blocked"),
+          metric("RUFLO", status.ruflo.role),
+        ].join("");
+
+        document.querySelector("#gates").innerHTML = data.validation_gates
+          .map((gate) => `<div class="row"><strong>${gate.name}</strong>${pill(gate.state)}</div>`)
+          .join("");
+
+        document.querySelector("#deployment").innerHTML = [
+          metric("Public app", deployment.public_control_center),
+          metric("Execution", deployment.private_execution),
+          metric("Tunnel", deployment.selected_tunnel),
+          metric("License", deployment.tunnel_license),
+          metric("Orders", deployment.live_order_endpoint_public ? "public" : "not public"),
+          metric("Secrets", deployment.broker_secrets_public ? "exposed" : "not exposed"),
+          metric("Access", deployment.tunnel_access_policy),
+          metric("Confirmation", deployment.operator_confirmation_required),
+        ].join("");
+
+        document.querySelector("#brokers").innerHTML = [
+          metric("Alpaca", status.live_preflight.apis.alpaca.ready ? "ready" : "blocked"),
+          metric("Groww", status.live_preflight.apis.groww.ready ? "ready" : "blocked"),
+          metric("Dhan", status.live_preflight.apis.dhan.ready ? "ready" : "blocked"),
+          metric("Twilio", status.live_preflight.alerts.twilio.ready ? "ready" : "blocked"),
+        ].join("");
+
+        document.querySelector("#model").innerHTML = [
+          metric("Version", data.model.active_version),
+          metric("Accuracy", data.model.accuracy || "not trained"),
+          metric("90% gate", data.model.promoted ? "passed" : "blocked"),
+          metric("Rows", data.model.validation_rows),
+        ].join("");
+
+        document.querySelector("#orders").innerHTML = data.scheduled_orders
+          .map(
+            (order) => `
+              <div class="row order">
+                <div>
+                  <strong>${order.symbol} / ${order.market}</strong>
+                  <p class="muted">${order.gate}</p>
+                  <p class="muted">${order.eligible_at} to ${order.expires_at}</p>
+                </div>
+                ${pill(order.status)}
+              </div>
+            `,
+          )
+          .join("");
+      }
+
+      load().catch((error) => {
+        document.body.innerHTML = `<main><section><h1>Unable to load status</h1><p class="muted">${error}</p></section></main>`;
+      });
+    </script>
+  </body>
+</html>

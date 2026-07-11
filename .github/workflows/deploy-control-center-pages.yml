@@ -1,0 +1,46 @@
+name: Deploy control center to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/control-center/static-dashboard/**
+      - apps/control-center/public/status.json
+      - .github/workflows/deploy-control-center-pages.yml
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Prepare read-only dashboard artifact
+        shell: bash
+        run: |
+          mkdir -p site
+          cp -R apps/control-center/static-dashboard/. site/
+          cp apps/control-center/public/status.json site/status.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

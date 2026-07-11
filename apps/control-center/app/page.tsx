@@ -50,7 +50,9 @@ type DashboardData = {
       can_place_orders: boolean;
       checks: string[];
     };
+    deployment: DeploymentStatus;
   };
+  deployment: DeploymentStatus;
   model: {
     mode: string;
     active_version: string;
@@ -74,6 +76,18 @@ type DashboardData = {
   }>;
   equity_summary: Record<string, string>;
   validation_gates: Gate[];
+};
+
+type DeploymentStatus = {
+  public_control_center: string;
+  private_execution: string;
+  selected_tunnel: string;
+  tunnel_license: string;
+  tunnel_access_policy: string;
+  live_order_endpoint_public: boolean;
+  broker_secrets_public: boolean;
+  operator_confirmation_required: string;
+  public_dashboard_url: string | null;
 };
 
 function StatePill({ state }: { state: string }) {
@@ -219,6 +233,33 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="border border-slate-200 bg-white p-5 lg:col-span-2">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-xl font-semibold">Deployment Boundary</h2>
+            <StatePill state={data.deployment.live_order_endpoint_public ? "blocked" : "ready"} />
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <Metric label="Public app" value={data.deployment.public_control_center} />
+            <Metric label="Execution" value={data.deployment.private_execution} />
+            <Metric label="Tunnel" value={data.deployment.selected_tunnel} />
+            <Metric label="License" value={data.deployment.tunnel_license} />
+            <Metric label="Order endpoint" value={data.deployment.live_order_endpoint_public ? "public" : "not public"} />
+            <Metric label="Secrets" value={data.deployment.broker_secrets_public ? "exposed" : "not exposed"} />
+            <div className="border border-slate-200 bg-white p-3 md:col-span-2">
+              <dt className="text-sm text-slate-500">Access policy</dt>
+              <dd className="mt-1 text-sm font-medium leading-6 text-slate-950">
+                {data.deployment.tunnel_access_policy}
+              </dd>
+            </div>
+            <div className="border border-slate-200 bg-white p-3">
+              <dt className="text-sm text-slate-500">Real-money confirmation</dt>
+              <dd className="mt-1 break-words font-mono text-sm font-semibold text-slate-950">
+                {data.deployment.operator_confirmation_required}
+              </dd>
+            </div>
           </div>
         </section>
 

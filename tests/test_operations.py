@@ -59,6 +59,9 @@ class OperationsTest(unittest.TestCase):
         self.assertEqual(data["scheduled_orders"][0]["status"], "pending")
         self.assertFalse(data["status"]["apis"]["alpaca_credentials_present"])
         self.assertFalse(data["status"]["apis"]["twilio_messaging_service_configured"])
+        self.assertEqual(data["deployment"]["public_control_center"], "read-only")
+        self.assertFalse(data["deployment"]["live_order_endpoint_public"])
+        self.assertIn("Read-only public dashboard", {gate["name"] for gate in data["validation_gates"]})
 
     def test_train_model_command_saves_and_activates_model(self):
         with tempfile.TemporaryDirectory() as temp_dir:

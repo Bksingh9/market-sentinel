@@ -24,4 +24,5 @@ Alpaca, Groww, and Twilio API boundaries are wired, but real network calls are o
 - `docs/superpowers/plans/2026-07-05-market-sentinel.md`
 - `docs/compliance-checklist.md`
 - `docs/operating-guide.md`
+- `docs/deployment-and-tunnel-runbook.md`
 - `docs/github-resources.md`

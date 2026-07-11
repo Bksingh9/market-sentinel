@@ -57,9 +57,10 @@ For Alpaca to be live-ready, the local environment must contain valid fresh valu
 2. Use `scripts/check-readiness.ps1` from this plugin when the user asks for readiness status.
 3. Use `scripts/export-dashboard-status.ps1` when the user wants the dashboard refreshed after setting env values.
 4. Use `scripts/start-live-session.ps1` when the user wants a local setup wizard. It prompts for secrets locally, does not echo them, runs preflight, refreshes the dashboard, and starts the local dashboard.
-5. Use `scripts/submit-confirmed-order.ps1` only after preflight is ready and the user provides exact real-money order parameters and the confirmation phrase `I_CONFIRM_REAL_MONEY_ORDER`.
-6. If preflight fails, report only the missing gate names, not secret values.
-7. If preflight passes, state that the system is ready for supervised order submission, then ask for exact order parameters before any real order action.
+5. Use `scripts/start-readonly-dashboard-tunnel.ps1` only for a named, identity-gated dashboard tunnel. Do not expose order submission through the tunnel.
+6. Use `scripts/submit-confirmed-order.ps1` only after preflight is ready and the user provides exact real-money order parameters and the confirmation phrase `I_CONFIRM_REAL_MONEY_ORDER`.
+7. If preflight fails, report only the missing gate names, not secret values.
+8. If preflight passes, state that the system is ready for supervised order submission, then ask for exact order parameters before any real order action.
 
 ## Script Usage
 
@@ -79,6 +80,12 @@ Run the local setup wizard:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File plugins\market-sentinel-brokers\scripts\start-live-session.ps1 -Broker groww
+```
+
+Start a private read-only dashboard tunnel:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File plugins\market-sentinel-brokers\scripts\start-readonly-dashboard-tunnel.ps1 -ConfigPath C:\Secure\market-sentinel\cloudflared.yml -TunnelName market-sentinel-control
 ```
 
 Submit a confirmed live order only after the preflight is ready:
