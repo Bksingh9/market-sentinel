@@ -17,3 +17,7 @@ apps/control-center/.env.local
 .vinext/
 apps/control-center/pnpm-lock.yaml
 outputs/
+data/datasets/
+data/models/
+data/trials/
+data/paper/
