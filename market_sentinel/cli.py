@@ -51,6 +51,7 @@ from market_sentinel.ml_validation import (
 from market_sentinel.model_store import ModelStore
 from market_sentinel.model_training import fit_fold_model, predict_probability
 from market_sentinel.models import InstrumentType
+from market_sentinel.paper_validation import PaperValidationStore
 from market_sentinel.ruflo import RUFLOAgent, live_preflight_report
 from market_sentinel.trial_ledger import TrialLedger, TrialRecord
 
@@ -564,12 +565,25 @@ def _validate_market_model(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
-def _promote_to_paper(args: argparse.Namespace) -> dict[str, object]:
-    store = ModelStore(Path(args.model_root))
+def _promote_to_paper(
+    args: argparse.Namespace,
+    *,
+    model_store_factory: Callable[[Path], ModelStore] = ModelStore,
+    paper_store_factory: Callable[[Path], PaperValidationStore] = PaperValidationStore,
+    activated_on: date | None = None,
+) -> dict[str, object]:
+    store = model_store_factory(Path(args.model_root))
     artifact = store.load(args.market, args.symbol, args.version)
     if not artifact.promoted_for_paper:
         raise ValueError("failed validation cannot activate a paper model")
     store.activate_for_paper(args.market, args.symbol, args.version)
+    paper_store_factory(Path(args.paper_root)).activate(
+        args.market,
+        args.symbol,
+        args.version,
+        artifact.behavior_checksum,
+        activated_on or datetime.now(timezone.utc).date(),
+    )
     return {
         "status": "active-for-paper",
         "market": args.market,
@@ -580,8 +594,11 @@ def _promote_to_paper(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _paper_status(args: argparse.Namespace) -> dict[str, object]:
-    path = Path(args.paper_root) / args.market / args.symbol / "state.json"
-    if not path.exists():
+    state = PaperValidationStore(Path(args.paper_root)).load(
+        args.market,
+        args.symbol,
+    )
+    if state is None:
         return {
             "market": args.market,
             "symbol": args.symbol,
@@ -589,7 +606,7 @@ def _paper_status(args: argparse.Namespace) -> dict[str, object]:
             "sessions_observed": 0,
             "required_sessions": 60,
         }
-    return json.loads(path.read_text(encoding="utf-8"))
+    return _json_safe(asdict(state))
 
 
 def _submit_order(args: argparse.Namespace) -> int:
@@ -826,6 +843,7 @@ def main(argv: list[str] | None = None) -> int:
     _add_lane_arguments(promote_parser)
     promote_parser.add_argument("--version", required=True)
     promote_parser.add_argument("--model-root", default="data/models")
+    promote_parser.add_argument("--paper-root", default="data/paper")
 
     paper_status_parser = subcommands.add_parser("paper-status")
     _add_lane_arguments(paper_status_parser)

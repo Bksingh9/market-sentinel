@@ -1,4 +1,5 @@
 import unittest
+import inspect
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -59,6 +60,13 @@ class ResearchAgentsTest(unittest.TestCase):
             Prediction(Decimal("0.90"), True, "spy-model-v1"),
         )
         self.assertEqual(intents, [])
+
+    def test_ruflo_cannot_activate_models_or_mutate_thresholds(self):
+        source = inspect.getsource(__import__("market_sentinel.ruflo", fromlist=["*"]))
+        self.assertNotIn("activate_for_paper", source)
+        self.assertNotIn(".place_order(", source)
+        self.assertNotIn("artifact.threshold =", source)
+        self.assertNotIn("mode = RuntimeMode.LIVE", source)
 
     @staticmethod
     def feature_row() -> FeatureRow:

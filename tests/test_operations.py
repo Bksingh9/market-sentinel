@@ -13,7 +13,11 @@ from types import SimpleNamespace
 
 from market_sentinel.analysis import AnalysisAgent
 from market_sentinel.audit import AuditLog
-from market_sentinel.cli import _assert_challenger_month_available, main
+from market_sentinel.cli import (
+    _assert_challenger_month_available,
+    _promote_to_paper,
+    main,
+)
 from market_sentinel.models import AuditEvent, Fill, Side
 from market_sentinel.portfolio import PortfolioAgent
 from market_sentinel.ruflo import RUFLOAgent
@@ -120,6 +124,42 @@ class OperationsTest(unittest.TestCase):
                 "SPY",
                 datetime(2026, 7, 20, tzinfo=timezone.utc),
             )
+
+    def test_paper_promotion_starts_lane_clock_without_changing_live_mode(self):
+        calls: list[tuple[object, ...]] = []
+
+        class FakeModelStore:
+            def load(self, market, symbol, version):
+                return SimpleNamespace(
+                    promoted_for_paper=True,
+                    behavior_checksum="behavior-a",
+                )
+
+            def activate_for_paper(self, market, symbol, version):
+                calls.append(("model", market, symbol, version))
+
+        class FakePaperStore:
+            def activate(self, market, symbol, version, checksum, activated_on):
+                calls.append(
+                    ("paper", market, symbol, version, checksum, activated_on)
+                )
+
+        args = SimpleNamespace(
+            market="US",
+            symbol="SPY",
+            version="spy-v1",
+            model_root="models",
+            paper_root="paper",
+        )
+        result = _promote_to_paper(
+            args,
+            model_store_factory=lambda _: FakeModelStore(),
+            paper_store_factory=lambda _: FakePaperStore(),
+            activated_on=datetime(2026, 7, 17, tzinfo=timezone.utc).date(),
+        )
+        self.assertEqual(calls[0], ("model", "US", "SPY", "spy-v1"))
+        self.assertEqual(calls[1][:5], ("paper", "US", "SPY", "spy-v1", "behavior-a"))
+        self.assertFalse(result["live_mode_changed"])
 
     def test_cli_module_invocation_runs_status_command(self):
         result = subprocess.run(
