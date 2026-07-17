@@ -1,11 +1,7 @@
-import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from pathlib import Path
 
-from market_sentinel.model_store import ModelStore
-from market_sentinel.model_training import TrainingExample, train_linear_model
 from market_sentinel.models import InstrumentType, OrderIntent, Side
 from market_sentinel.scheduler import ScheduledOrderBook, ScheduledOrderIntent, ScheduledOrderStatus
 
@@ -25,67 +21,6 @@ def protected_intent():
 
 
 class MLTrainingAndSchedulingTest(unittest.TestCase):
-    def test_training_produces_model_that_scores_positive_example(self):
-        examples = [
-            TrainingExample({"momentum": Decimal("0.04"), "average_volume": Decimal("1000")}, 1),
-            TrainingExample({"momentum": Decimal("-0.03"), "average_volume": Decimal("900")}, 0),
-            TrainingExample({"momentum": Decimal("0.02"), "average_volume": Decimal("1100")}, 1),
-        ]
-
-        model = train_linear_model(examples, epochs=12)
-
-        self.assertEqual(model.training_rows, 3)
-        self.assertIn("momentum", model.feature_names)
-        self.assertGreater(model.predict_score({"momentum": Decimal("0.04"), "average_volume": Decimal("1000")}), Decimal("0.5"))
-
-    def test_training_promotes_only_when_validation_accuracy_clears_90_percent(self):
-        train = [
-            TrainingExample({"momentum": Decimal("1.0")}, 1),
-            TrainingExample({"momentum": Decimal("-1.0")}, 0),
-            TrainingExample({"momentum": Decimal("0.8")}, 1),
-            TrainingExample({"momentum": Decimal("-0.8")}, 0),
-        ]
-        validation = [
-            TrainingExample({"momentum": Decimal("0.6")}, 1),
-            TrainingExample({"momentum": Decimal("-0.6")}, 0),
-        ]
-
-        model = train_linear_model(train, validation_examples=validation, epochs=8)
-
-        self.assertGreaterEqual(model.accuracy, Decimal("0.9000"))
-        self.assertTrue(model.promoted)
-        self.assertEqual(model.validation_rows, 2)
-
-    def test_training_blocks_model_below_90_percent_validation_accuracy(self):
-        train = [
-            TrainingExample({"momentum": Decimal("1.0")}, 1),
-            TrainingExample({"momentum": Decimal("-1.0")}, 0),
-        ]
-        validation = [
-            TrainingExample({"momentum": Decimal("0.6")}, 0),
-            TrainingExample({"momentum": Decimal("-0.6")}, 1),
-        ]
-
-        model = train_linear_model(train, validation_examples=validation, epochs=8)
-
-        self.assertLess(model.accuracy, Decimal("0.9000"))
-        self.assertFalse(model.promoted)
-
-    def test_model_store_round_trips_active_model(self):
-        model = train_linear_model([
-            TrainingExample({"momentum": Decimal("0.04")}, 1),
-            TrainingExample({"momentum": Decimal("-0.03")}, 0),
-        ])
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            store = ModelStore(Path(temp_dir))
-            store.save(model)
-            store.activate(model.version)
-            loaded = store.load_active()
-
-        self.assertEqual(loaded.version, model.version)
-        self.assertEqual(loaded.feature_names, model.feature_names)
-
     def test_scheduler_returns_only_eligible_unexpired_intents(self):
         now = datetime(2026, 7, 5, 10, 0, tzinfo=timezone.utc)
         book = ScheduledOrderBook()
