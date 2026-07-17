@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from market_sentinel.ml_features import FeatureRow
 from market_sentinel.models import InstrumentType, OrderIntent, Side
 from market_sentinel.prediction import Prediction
 
@@ -12,22 +13,19 @@ class StrategyAgent:
 
     def generate(
         self,
-        symbol: str,
-        market: str,
-        features: dict[str, Decimal],
+        feature_row: FeatureRow,
+        candidate_passed: bool,
         prediction: Prediction,
     ) -> list[OrderIntent]:
-        if not prediction.passed:
-            return []
-        if features.get("momentum", Decimal("0")) <= Decimal("0"):
+        if not candidate_passed or not prediction.passed:
             return []
 
-        limit_price = features["last_close"]
+        limit_price = feature_row.last_close
         return [
             OrderIntent(
-                symbol=symbol,
-                market=market,
-                instrument_type=InstrumentType.ETF if symbol in {"SPY", "NIFTYBEES"} else InstrumentType.EQUITY,
+                symbol=feature_row.symbol,
+                market=feature_row.market,
+                instrument_type=InstrumentType.ETF,
                 side=Side.BUY,
                 quantity=Decimal("1"),
                 limit_price=limit_price,

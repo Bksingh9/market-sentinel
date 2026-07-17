@@ -1,129 +1,45 @@
 {
-  "equity_summary": {
-    "end": "100100",
-    "max_drawdown": "0.0040",
-    "return": "0.0010",
-    "start": "100000"
-  },
-  "model": {
-    "accuracy": "1.0000",
-    "active_version": "model-20260705180420309973",
-    "can_place_orders": false,
-    "feature_set": [
-      "average_volume",
-      "momentum"
-    ],
-    "last_trained_at": "2026-07-05T18:04:20.309973+00:00",
-    "mode": "advisory",
-    "promoted": true,
-    "promotion_threshold": "0.9000",
-    "validation_rows": 10
-  },
-  "scheduled_orders": [
-    {
-      "eligible_at": "2026-07-06T13:30:00+00:00",
-      "expires_at": "2026-07-06T20:00:00+00:00",
-      "gate": "must pass fresh risk and compliance checks",
-      "id": "paper-open-check",
-      "market": "US",
-      "model_version": "model-20260705180420309973",
-      "status": "pending",
-      "symbol": "SPY"
-    }
-  ],
-  "status": {
-    "account_id": "paper-local",
-    "apis": {
-      "alpaca_credentials_present": false,
-      "alpaca_real_api_enabled": false,
-      "groww_credentials_present": false,
-      "groww_real_api_enabled": false,
-      "twilio_alerts_enabled": false,
-      "twilio_credentials_present": false,
-      "twilio_messaging_service_configured": false,
-      "twilio_sender_configured": false,
-      "twilio_status_callback_configured": false
-    },
-    "live_preflight": {
-      "account_allowlisted": true,
-      "account_id": "paper-local",
-      "alerts": {
-        "twilio": {
-          "enabled": false,
-          "missing": [
-            "TWILIO_ALERTS_ENABLED",
-            "TWILIO_ACCOUNT_SID",
-            "TWILIO_AUTH_TOKEN",
-            "TWILIO_TO",
-            "TWILIO_FROM or TWILIO_MESSAGING_SERVICE_SID"
-          ],
-          "ready": false
-        }
-      },
-      "apis": {
-        "alpaca": {
-          "enabled": false,
-          "missing": [
-            "MARKET_SENTINEL_MODE=live-small",
-            "ALPACA_LIVE_TRADING_ENABLED",
-            "ALPACA_REAL_API_ENABLED",
-            "ALPACA_ACCOUNT_ID",
-            "ALPACA_KEY_ID",
-            "ALPACA_SECRET_KEY"
-          ],
-          "ready": false
-        },
-        "groww": {
-          "enabled": false,
-          "missing": [
-            "MARKET_SENTINEL_MODE=live-small",
-            "INDIA_LIVE_TRADING_ENABLED",
-            "INDIA_ALGO_COMPLIANCE_VERIFIED",
-            "GROWW_REAL_API_ENABLED",
-            "GROWW_ACCESS_TOKEN",
-            "GROWW_ALGO_ID"
-          ],
-          "ready": false
-        }
-      },
-      "mode": "disabled",
-      "ready_to_trade": false,
-      "ruflo": {
-        "can_place_orders": false,
-        "order_boundary": "ExecutionAgent",
-        "role": "supervised-coordinator"
+  "disclaimer": "Historical and paper results do not guarantee future performance. Real-money activation is outside this workflow.",
+  "generated_at": "2026-07-17T00:00:00+00:00",
+  "lanes": {
+    "IN:NIFTYBEES": {
+      "blocked_reasons": ["data-not-downloaded", "model-not-validated"],
+      "data": {"available": false, "source": "Groww"},
+      "data_quality": {"status": "blocked"},
+      "drift": {"status": "insufficient-history"},
+      "execution_target": "local simulator",
+      "mode": "paper-observation",
+      "model": {"active": false},
+      "paper": {"complete": false, "required_sessions": 60, "sessions_observed": 0},
+      "validation": {
+        "aggregate_metrics": {},
+        "coverage": null,
+        "expectancy": null,
+        "fold_metrics": [],
+        "maximum_drawdown": null,
+        "modeled_costs": null,
+        "promoted_for_paper": false
       }
     },
-    "live_small_blocked_by_default": true,
-    "mode": "disabled",
-    "ruflo": {
-      "can_place_orders": false,
-      "checks": [
-        "dependency license review",
-        "Groww permissions and India algo obligations",
-        "Alpaca account and endpoint separation",
-        "Twilio alert delivery and consent setup",
-        "four-week paper gate"
-      ],
-      "role": "supervised-coordinator"
+    "US:SPY": {
+      "blocked_reasons": ["data-not-downloaded", "model-not-validated"],
+      "data": {"available": false, "source": "Alpaca"},
+      "data_quality": {"status": "blocked"},
+      "drift": {"status": "insufficient-history"},
+      "execution_target": "Alpaca paper",
+      "mode": "paper-observation",
+      "model": {"active": false},
+      "paper": {"complete": false, "required_sessions": 60, "sessions_observed": 0},
+      "validation": {
+        "aggregate_metrics": {},
+        "coverage": null,
+        "expectancy": null,
+        "fold_metrics": [],
+        "maximum_drawdown": null,
+        "modeled_costs": null,
+        "promoted_for_paper": false
+      }
     }
   },
-  "validation_gates": [
-    {
-      "name": "Unit tests",
-      "state": "ready"
-    },
-    {
-      "name": "Model accuracy gate",
-      "state": "ready"
-    },
-    {
-      "name": "Four-week paper gate",
-      "state": "not-started"
-    },
-    {
-      "name": "Live-small compliance",
-      "state": "blocked"
-    }
-  ]
+  "scope": "historical-validation-and-paper-only"
 }

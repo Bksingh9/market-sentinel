@@ -41,6 +41,11 @@ class ConfigAndModelsTest(unittest.TestCase):
         self.assertEqual(settings.twilio_messaging_service_sid, "MG123")
         self.assertEqual(settings.twilio_status_callback_url, "https://example.test/twilio/status")
 
+    def test_dhan_security_id_map_loads_valid_symbol_entries(self):
+        settings = load_settings({"DHAN_SECURITY_ID_MAP": "IDEA:14366, BAD:nope, NIFTYBEES:10576"})
+
+        self.assertEqual(settings.dhan_security_id_map, {"IDEA": "14366", "NIFTYBEES": "10576"})
+
     def test_order_intent_requires_protection(self):
         intent = OrderIntent(
             symbol="SPY",

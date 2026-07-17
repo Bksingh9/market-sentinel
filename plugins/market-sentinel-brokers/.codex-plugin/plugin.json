@@ -1,0 +1,25 @@
+{
+  "name": "market-sentinel-brokers",
+  "version": "0.1.0+codex.20260707195521",
+  "description": "Local broker setup and live-readiness guidance for Market Sentinel.",
+  "author": {
+    "name": "Market Sentinel"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Market Sentinel Brokers",
+    "shortDescription": "Guide Groww and Alpaca setup without storing secrets.",
+    "longDescription": "Market Sentinel Brokers helps Codex run the local Groww and Alpaca readiness flow, verify live gates, and keep real-money order placement behind explicit confirmation.",
+    "developerName": "Market Sentinel",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Check Groww live readiness.",
+      "Set up Alpaca and Groww locally.",
+      "Run the broker preflight."
+    ]
+  }
+}

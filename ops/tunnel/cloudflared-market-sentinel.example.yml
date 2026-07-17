@@ -1,0 +1,7 @@
+tunnel: REPLACE_WITH_TUNNEL_ID
+credentials-file: C:\Secure\market-sentinel\REPLACE_WITH_TUNNEL_ID.json
+
+ingress:
+  - hostname: market-sentinel.example.com
+    service: http://localhost:4191
+  - service: http_status:404

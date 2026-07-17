@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from market_sentinel.brokers import MockBrokerAdapter
-from market_sentinel.config import RuntimeMode, Settings
+from market_sentinel.config import PrimaryBroker, RuntimeMode, Settings
 from market_sentinel.execution import ExecutionAgent
 from market_sentinel.models import AccountSnapshot, InstrumentType, OrderIntent, Side
 
@@ -25,6 +25,9 @@ def _check(*, enabled: bool, required: dict[str, object]) -> dict[str, object]:
 def live_preflight_report(settings: Settings) -> dict[str, object]:
     account_allowlisted = settings.account_id in settings.account_allowlist
     mode_ready = settings.mode == RuntimeMode.LIVE_SMALL
+    groww_credentials_present = bool(
+        settings.groww_access_token or (settings.groww_api_key and settings.groww_secret_key)
+    )
     alpaca = _check(
         enabled=mode_ready and settings.alpaca_live_trading_enabled and settings.alpaca_real_api_enabled,
         required={
@@ -32,6 +35,8 @@ def live_preflight_report(settings: Settings) -> dict[str, object]:
             "MARKET_SENTINEL_ACCOUNT_ALLOWLIST includes MARKET_SENTINEL_ACCOUNT_ID": account_allowlisted,
             "ALPACA_LIVE_TRADING_ENABLED": settings.alpaca_live_trading_enabled,
             "ALPACA_REAL_API_ENABLED": settings.alpaca_real_api_enabled,
+            "ALPACA_TRADING_ENDPOINT=https://api.alpaca.markets": settings.alpaca_trading_endpoint
+            == "https://api.alpaca.markets",
             "ALPACA_ACCOUNT_ID": settings.alpaca_account_id,
             "ALPACA_KEY_ID": settings.alpaca_key_id,
             "ALPACA_SECRET_KEY": settings.alpaca_secret_key,
@@ -45,8 +50,28 @@ def live_preflight_report(settings: Settings) -> dict[str, object]:
             "INDIA_LIVE_TRADING_ENABLED": settings.india_live_trading_enabled,
             "INDIA_ALGO_COMPLIANCE_VERIFIED": settings.india_algo_compliance_verified,
             "GROWW_REAL_API_ENABLED": settings.groww_real_api_enabled,
-            "GROWW_ACCESS_TOKEN": settings.groww_access_token,
+            "GROWW_API_SUBSCRIPTION_ACTIVE": settings.groww_api_subscription_active,
+            "GROWW_PROTECTED_ORDER_CLIENT": settings.groww_protected_order_client,
+            "GROWW_STATIC_OUTBOUND_IP": settings.groww_static_outbound_ip,
+            "GROWW_STATIC_IP_ALLOWLISTED": settings.groww_static_ip_allowlisted,
+            "GROWW_ACCESS_TOKEN or GROWW_API_KEY+GROWW_SECRET_KEY": groww_credentials_present,
             "GROWW_ALGO_ID": settings.groww_algo_id,
+        },
+    )
+    dhan = _check(
+        enabled=mode_ready and settings.india_live_trading_enabled and settings.dhan_real_api_enabled,
+        required={
+            "MARKET_SENTINEL_MODE=live-small": mode_ready,
+            "MARKET_SENTINEL_ACCOUNT_ALLOWLIST includes MARKET_SENTINEL_ACCOUNT_ID": account_allowlisted,
+            "INDIA_LIVE_TRADING_ENABLED": settings.india_live_trading_enabled,
+            "INDIA_ALGO_COMPLIANCE_VERIFIED": settings.india_algo_compliance_verified,
+            "DHAN_REAL_API_ENABLED": settings.dhan_real_api_enabled,
+            "DHAN_CLIENT_ID": settings.dhan_client_id,
+            "DHAN_ACCESS_TOKEN": settings.dhan_access_token,
+            "DHAN_STATIC_OUTBOUND_IP": settings.dhan_static_outbound_ip,
+            "DHAN_STATIC_IP_ALLOWLISTED": settings.dhan_static_ip_allowlisted,
+            "DHAN_PROTECTED_ORDER_CLIENT": settings.dhan_protected_order_client,
+            "DHAN_SECURITY_ID_MAP": bool(settings.dhan_security_id_map),
         },
     )
     twilio = _check(
@@ -61,15 +86,25 @@ def live_preflight_report(settings: Settings) -> dict[str, object]:
         },
     )
     alerts_ready = (not settings.twilio_alerts_enabled) or bool(twilio["ready"])
-    broker_ready = bool(alpaca["ready"] or groww["ready"])
+    broker_checks = {
+        PrimaryBroker.ALPACA: alpaca,
+        PrimaryBroker.GROWW: groww,
+        PrimaryBroker.DHAN: dhan,
+    }
+    if settings.primary_broker == PrimaryBroker.ANY:
+        broker_ready = bool(alpaca["ready"] or groww["ready"] or dhan["ready"])
+    else:
+        broker_ready = bool(broker_checks[settings.primary_broker]["ready"])
     return {
         "mode": settings.mode.value,
+        "primary_broker": settings.primary_broker.value,
         "account_id": settings.account_id,
         "account_allowlisted": account_allowlisted,
         "ready_to_trade": bool(mode_ready and account_allowlisted and broker_ready and alerts_ready),
         "apis": {
             "alpaca": alpaca,
             "groww": groww,
+            "dhan": dhan,
         },
         "alerts": {
             "twilio": twilio,
@@ -92,9 +127,30 @@ class RUFLOAgent:
                 "Groww permissions and India algo obligations",
                 "Alpaca account and endpoint separation",
                 "Twilio alert delivery and consent setup",
-                "four-week paper gate",
+                "independent 60-session paper gates",
             ],
         }
+
+    def paper_evidence(self, store: object) -> dict[str, object]:
+        lanes: dict[str, object] = {}
+        for market, symbol in (("US", "SPY"), ("IN", "NIFTYBEES")):
+            state = store.load(market, symbol)
+            lanes[f"{market}:{symbol}"] = (
+                {
+                    "status": "not-started",
+                    "sessions_observed": 0,
+                    "required_sessions": 60,
+                }
+                if state is None
+                else {
+                    "status": state.status,
+                    "sessions_observed": state.sessions_observed,
+                    "required_sessions": 60,
+                    "calibration_status": state.calibration_status,
+                    "drift_status": state.drift_status,
+                }
+            )
+        return {"lanes": lanes, "can_place_orders": False}
 
     def trading_authority(self) -> dict[str, object]:
         return {

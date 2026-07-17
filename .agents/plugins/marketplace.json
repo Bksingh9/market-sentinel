@@ -1,0 +1,20 @@
+{
+  "name": "market-sentinel",
+  "interface": {
+    "displayName": "Market Sentinel"
+  },
+  "plugins": [
+    {
+      "name": "market-sentinel-brokers",
+      "source": {
+        "source": "local",
+        "path": "./plugins/market-sentinel-brokers"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
