@@ -13,6 +13,15 @@ class HttpResponse:
 
 
 class HttpClient(Protocol):
+    def get_json(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        query: dict[str, str],
+    ) -> HttpResponse:
+        ...
+
     def post_json(
         self,
         url: str,
@@ -34,6 +43,19 @@ class HttpClient(Protocol):
 
 
 class UrllibHttpClient:
+    def get_json(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        query: dict[str, str],
+    ) -> HttpResponse:
+        encoded_url = f"{url}?{parse.urlencode(query)}" if query else url
+        req = request.Request(encoded_url, headers=headers, method="GET")
+        with request.urlopen(req, timeout=20) as response:
+            text = response.read().decode("utf-8")
+            return HttpResponse(response.status, json.loads(text) if text else {})
+
     def post_json(
         self,
         url: str,

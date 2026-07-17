@@ -60,6 +60,7 @@ class Settings:
     alpaca_key_id: str | None = None
     alpaca_secret_key: str | None = None
     alpaca_real_api_enabled: bool = False
+    alpaca_market_data_endpoint: str = "https://data.alpaca.markets"
     alpaca_paper_trading_endpoint: str = "https://paper-api.alpaca.markets"
     alpaca_trading_endpoint: str = "https://api.alpaca.markets"
     twilio_alerts_enabled: bool = False
@@ -162,6 +163,11 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
         alpaca_key_id=source.get("ALPACA_KEY_ID") or None,
         alpaca_secret_key=source.get("ALPACA_SECRET_KEY") or None,
         alpaca_real_api_enabled=_parse_bool(source.get("ALPACA_REAL_API_ENABLED")),
+        alpaca_market_data_endpoint=_parse_endpoint(
+            source.get("ALPACA_MARKET_DATA_ENDPOINT"),
+            default="https://data.alpaca.markets",
+            allowed_hosts=frozenset({"data.alpaca.markets"}),
+        ),
         alpaca_paper_trading_endpoint=_parse_endpoint(
             source.get("ALPACA_PAPER_TRADING_ENDPOINT"),
             default="https://paper-api.alpaca.markets",
