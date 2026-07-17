@@ -127,9 +127,30 @@ class RUFLOAgent:
                 "Groww permissions and India algo obligations",
                 "Alpaca account and endpoint separation",
                 "Twilio alert delivery and consent setup",
-                "four-week paper gate",
+                "independent 60-session paper gates",
             ],
         }
+
+    def paper_evidence(self, store: object) -> dict[str, object]:
+        lanes: dict[str, object] = {}
+        for market, symbol in (("US", "SPY"), ("IN", "NIFTYBEES")):
+            state = store.load(market, symbol)
+            lanes[f"{market}:{symbol}"] = (
+                {
+                    "status": "not-started",
+                    "sessions_observed": 0,
+                    "required_sessions": 60,
+                }
+                if state is None
+                else {
+                    "status": state.status,
+                    "sessions_observed": state.sessions_observed,
+                    "required_sessions": 60,
+                    "calibration_status": state.calibration_status,
+                    "drift_status": state.drift_status,
+                }
+            )
+        return {"lanes": lanes, "can_place_orders": False}
 
     def trading_authority(self) -> dict[str, object]:
         return {
