@@ -15,6 +15,7 @@ from market_sentinel.analysis import AnalysisAgent
 from market_sentinel.audit import AuditLog
 from market_sentinel.cli import (
     _assert_challenger_month_available,
+    _export_dashboard,
     _promote_to_paper,
     main,
 )
@@ -160,6 +161,35 @@ class OperationsTest(unittest.TestCase):
         self.assertEqual(calls[0], ("model", "US", "SPY", "spy-v1"))
         self.assertEqual(calls[1][:5], ("paper", "US", "SPY", "spy-v1", "behavior-a"))
         self.assertFalse(result["live_mode_changed"])
+
+    def test_dashboard_exports_two_non_aggregated_sanitized_lanes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "status.json"
+            _export_dashboard(
+                path,
+                model_dir=Path(directory) / "models",
+                data_root=Path(directory) / "datasets",
+                paper_root=Path(directory) / "paper",
+            )
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(set(payload["lanes"]), {"US:SPY", "IN:NIFTYBEES"})
+        encoded = json.dumps(payload).lower()
+        self.assertNotIn("ready_to_trade", encoded)
+        self.assertNotIn("api_key", encoded)
+        self.assertNotIn("secret", encoded)
+        for lane in payload["lanes"].values():
+            self.assertFalse(lane["paper"]["complete"])
+            self.assertIn("modeled_costs", lane["validation"])
+            self.assertIn("expectancy", lane["validation"])
+            self.assertIn("coverage", lane["validation"])
+
+    def test_dashboard_has_no_order_submission_or_manual_readiness_control(self):
+        source = Path("apps/control-center/app/page.tsx").read_text(
+            encoding="utf-8"
+        ).lower()
+        self.assertNotIn("submit-order", source)
+        self.assertNotIn("ready_to_trade", source)
+        self.assertNotIn("place order", source)
 
     def test_cli_module_invocation_runs_status_command(self):
         result = subprocess.run(

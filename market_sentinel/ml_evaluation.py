@@ -287,6 +287,7 @@ def evaluate_validation(
         "negative_count": negative_count,
         "filtered_expectancy": filtered_expectancy,
         "baseline_expectancy": baseline_expectancy,
+        "acceptance_coverage": acceptance_coverage,
         "filtered_net_return": sum(
             (item.filtered.net_return for item in fold_tuple),
             Decimal("0"),

@@ -767,7 +767,15 @@ def _lane_dashboard_status(
         blocked.append("data-not-downloaded")
     pointer = model_dir / market / symbol / "active-paper.txt"
     model_status: dict[str, object] = {"active": False}
-    validation_status: dict[str, object] = {"promoted_for_paper": False}
+    validation_status: dict[str, object] = {
+        "promoted_for_paper": False,
+        "fold_metrics": [],
+        "aggregate_metrics": {},
+        "modeled_costs": None,
+        "maximum_drawdown": None,
+        "expectancy": None,
+        "coverage": None,
+    }
     if pointer.exists():
         version = pointer.read_text(encoding="utf-8").strip()
         artifact = ModelStore(model_dir).load(market, symbol, version)
@@ -782,6 +790,22 @@ def _lane_dashboard_status(
             "fold_metrics": _json_safe(artifact.fold_metrics),
             "aggregate_metrics": _json_safe(artifact.aggregate_metrics),
             "failure_reasons": list(artifact.failure_reasons),
+            "modeled_costs": _sum_nested_metric(
+                artifact.fold_metrics,
+                "filtered",
+                "total_costs",
+            ),
+            "maximum_drawdown": _max_nested_metric(
+                artifact.fold_metrics,
+                "filtered",
+                "maximum_drawdown",
+            ),
+            "expectancy": artifact.aggregate_metrics.get(
+                "filtered_expectancy"
+            ),
+            "coverage": artifact.aggregate_metrics.get(
+                "acceptance_coverage"
+            ),
         }
     else:
         blocked.append("model-not-validated")
@@ -805,6 +829,34 @@ def _lane_dashboard_status(
         "data_quality": {"status": "blocked" if blocked else "available"},
         "blocked_reasons": blocked,
     }
+
+
+def _sum_nested_metric(
+    metrics: tuple[dict[str, object], ...],
+    section: str,
+    name: str,
+) -> str | None:
+    values = [
+        Decimal(str(item[section][name]))
+        for item in metrics
+        if isinstance(item.get(section), dict)
+        and name in item[section]
+    ]
+    return None if not values else str(sum(values, Decimal("0")))
+
+
+def _max_nested_metric(
+    metrics: tuple[dict[str, object], ...],
+    section: str,
+    name: str,
+) -> str | None:
+    values = [
+        Decimal(str(item[section][name]))
+        for item in metrics
+        if isinstance(item.get(section), dict)
+        and name in item[section]
+    ]
+    return None if not values else str(max(values))
 
 
 def main(argv: list[str] | None = None) -> int:

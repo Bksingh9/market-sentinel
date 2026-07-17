@@ -67,6 +67,10 @@ class MLEvaluationTest(unittest.TestCase):
         self.assertEqual(report.attempted_configurations, 3)
         self.assertGreaterEqual(report.acceptance_coverage, Decimal("0.10"))
         self.assertLessEqual(report.acceptance_coverage, Decimal("0.80"))
+        self.assertEqual(
+            report.aggregate_metrics["acceptance_coverage"],
+            Decimal("0.50"),
+        )
 
     def calibration_rows(self) -> tuple[StubRow, ...]:
         start = date(2024, 1, 1)
