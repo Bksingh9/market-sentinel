@@ -1,5 +1,6 @@
 import json
 import io
+import inspect
 import subprocess
 import sys
 import tempfile
@@ -8,11 +9,11 @@ from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 from market_sentinel.analysis import AnalysisAgent
 from market_sentinel.audit import AuditLog
-from market_sentinel.cli import _export_dashboard, main
-from market_sentinel.model_store import ModelStore
+from market_sentinel.cli import _assert_challenger_month_available, main
 from market_sentinel.models import AuditEvent, Fill, Side
 from market_sentinel.portfolio import PortfolioAgent
 from market_sentinel.ruflo import RUFLOAgent
@@ -49,30 +50,76 @@ class OperationsTest(unittest.TestCase):
 
         self.assertFalse(report["can_place_orders"])
 
-    def test_dashboard_export_includes_model_and_scheduled_orders(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            path = Path(temp_dir) / "status.json"
-            _export_dashboard(path)
-            data = json.loads(path.read_text(encoding="utf-8"))
+    def test_train_market_model_requires_real_dataset_and_never_uses_synthetic_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "train-market-model",
+                        "--market",
+                        "US",
+                        "--symbol",
+                        "SPY",
+                        "--dataset-id",
+                        "missing",
+                        "--data-root",
+                        directory,
+                    ]
+                )
+        self.assertNotEqual(exit_code, 0)
+        self.assertIn("dataset", output.getvalue().lower())
+        self.assertNotIn("accuracy gate", output.getvalue().lower())
 
-        self.assertEqual(data["model"]["mode"], "advisory")
-        self.assertEqual(data["scheduled_orders"][0]["status"], "pending")
-        self.assertFalse(data["status"]["apis"]["alpaca_credentials_present"])
-        self.assertFalse(data["status"]["apis"]["twilio_messaging_service_configured"])
-        self.assertEqual(data["deployment"]["public_control_center"], "read-only")
-        self.assertFalse(data["deployment"]["live_order_endpoint_public"])
-        self.assertIn("Read-only public dashboard", {gate["name"] for gate in data["validation_gates"]})
+    def test_historical_commands_do_not_import_or_construct_live_brokers(self):
+        source = inspect.getsource(__import__("market_sentinel.cli", fromlist=["*"]))
+        research_source = source[
+            source.index("def _download_data") : source.index("def _submit_order")
+        ]
+        self.assertNotIn("GrowwBrokerAdapter", research_source)
+        self.assertNotIn("AlpacaBrokerAdapter", research_source)
+        self.assertNotIn("ExecutionAgent", research_source)
 
-    def test_train_model_command_saves_and_activates_model(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            model_dir = Path(temp_dir) / "models"
-            with redirect_stdout(io.StringIO()):
-                exit_code = main(["train-model", "--model-dir", str(model_dir)])
-            model = ModelStore(model_dir).load_active()
+    def test_failed_validation_cannot_activate_paper_pointer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        "promote-to-paper",
+                        "--market",
+                        "US",
+                        "--symbol",
+                        "SPY",
+                        "--version",
+                        "failed-v1",
+                        "--model-root",
+                        directory,
+                    ]
+                )
+            pointer = Path(directory) / "US" / "SPY" / "active-paper.txt"
+        self.assertEqual(exit_code, 1)
+        self.assertFalse(pointer.exists())
 
-        self.assertEqual(exit_code, 0)
-        self.assertGreaterEqual(model.training_rows, 3)
-        self.assertIn("momentum", model.feature_names)
+    def test_only_one_challenger_per_lane_per_calendar_month(self):
+        records = (
+            SimpleNamespace(
+                stage="walk-forward-validation",
+                market="US",
+                symbol="SPY",
+                created_at="2026-07-01T00:00:00+00:00",
+            ),
+        )
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "challenger already created for 2026-07",
+        ):
+            _assert_challenger_month_available(
+                records,
+                "US",
+                "SPY",
+                datetime(2026, 7, 20, tzinfo=timezone.utc),
+            )
 
     def test_cli_module_invocation_runs_status_command(self):
         result = subprocess.run(
